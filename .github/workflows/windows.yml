@@ -1,0 +1,69 @@
+name: Build native Windows app
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: Optional default Vercel HTTPS origin (editable in the app)
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      HUSH_SERVER_URL: ${{ inputs.app_url }}
+      OPUS_STATIC: '1'
+      CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked -p hush-native --all-targets -- -D warnings
+      - run: cargo test --locked -p hush-native
+      - run: cargo build --locked --release -p hush-native
+      - name: Test native audio and chat against local coordination
+        shell: pwsh
+        run: |
+          $voiceServer = Start-Process node -ArgumentList '--import','tsx','scripts/dev-server.ts' -PassThru -RedirectStandardOutput 'coordination.stdout.log' -RedirectStandardError 'coordination.stderr.log'
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 20; $attempt++) {
+              try { Invoke-WebRequest 'http://127.0.0.1:5173/' -UseBasicParsing | Out-Null; $ready = $true; break } catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $ready) { throw 'Local coordination did not start' }
+            $nativeTest = Start-Process 'target/release/hush-native.exe' -ArgumentList '--self-test' -Wait -PassThru -RedirectStandardOutput 'native-test.stdout.log' -RedirectStandardError 'native-test.stderr.log'
+            Get-Content 'native-test.stderr.log'
+            if ($nativeTest.ExitCode -ne 0) { throw "Native integration test failed: $($nativeTest.ExitCode)" }
+          } finally { Stop-Process -Id $voiceServer.Id -ErrorAction SilentlyContinue }
+      - name: Install NSIS packaging tool
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis --yes --no-progress }
+      - name: Package native installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\NSIS\makensis.exe" packaging/windows/installer.nsi'
+      - name: Generate release checksums
+        shell: pwsh
+        run: |
+          $releaseFiles = @('target/release/hush-native.exe', 'packaging/windows/Hush-0.2.0-Windows-Setup.exe')
+          $releaseFiles | ForEach-Object { $digest = Get-FileHash $_ -Algorithm SHA256; "$($digest.Hash.ToLower())  $(Split-Path $_ -Leaf)" } | Set-Content -Encoding ascii SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hush-Windows-native
+          path: |
+            SHA256SUMS.txt
+            target/release/hush-native.exe
+            packaging/windows/Hush-0.2.0-Windows-Setup.exe
+            README.md
+            native/assets/OFL-Manrope.txt
+          if-no-files-found: error

@@ -1,0 +1,35 @@
+[package]
+name = "hush-native"
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.90"
+description = "Native peer-to-peer voice for a small gaming squad"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+bytes = "1"
+cpal = "0.15"
+crossbeam-channel = "0.5"
+directories = "6"
+eframe = { version = "0.33", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "accesskit"] }
+global-hotkey = "0.7"
+if-addrs = "0.14"
+igd-next = "0.16"
+opus = "0.3"
+quinn = { version = "0.11", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
+rcgen = "0.13"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rtrb = "0.3"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "signal"] }
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"

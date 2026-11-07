@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+src-tauri/target/
+test-results/
+playwright-report/
+.impeccable/mocks/
+*.tsbuildinfo
+.tools/
+target/
+.env.native
+*.log
+server-dist/
+artifacts/
+
+# Local agent and development state
+graft/
+.impeccable/

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Hush · Native coordination</title>
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      html {
+        color-scheme: dark;
+        background: #161c19;
+        color: #e8ece5;
+        font:
+          16px/1.7 system-ui,
+          sans-serif;
+      }
+      body {
+        max-width: 620px;
+        margin: 12vh auto;
+        padding: 28px;
+      }
+      img {
+        width: 52px;
+        height: 52px;
+      }
+      h1 {
+        font-size: 34px;
+        letter-spacing: -0.03em;
+        line-height: 1.2;
+        margin: 28px 0 16px;
+      }
+      p {
+        color: #b8c9ad;
+      }
+      code {
+        color: #c3e6a3;
+        overflow-wrap: anywhere;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid #34432e;
+        margin: 30px 0;
+      }
+      small {
+        color: #a0b197;
+      }
+    </style>
+  </head>
+  <body>
+    <img src="/favicon.svg" alt="Hush" />
+    <h1>A little closer.<br />Entirely native.</h1>
+    <p>
+      This deployment coordinates rooms for the <strong>Hush Rust desktop app</strong>. It does not
+      contain a browser voice client.
+    </p>
+    <p>
+      Open Hush on your computer and enter this deployment’s HTTPS origin in
+      <strong>Voice &amp; settings</strong>.
+    </p>
+    <hr />
+    <p>
+      Native Opus audio travels directly between authenticated peers over QUIC. This Vercel service
+      exchanges room membership and connection details only.
+    </p>
+    <small
+      >Protocol: <code>hush-voice/1</code> · API: <code>POST /api/native-room</code><br />A private
+      Vercel Blob store must be attached for production room coordination.</small
+    >
+  </body>
+</html>
