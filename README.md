@@ -86,7 +86,7 @@ The executable and `packaging/windows/Hush-0.2.0-Windows-Setup.exe` require no b
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default Vercel origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and uploads them as an artifact. It does not publish a release.
 
-A Windows build/runtime environment is not available in this session. Windows packaging, WASAPI device behavior, global F8 and gaming performance still need validation on a Windows PC. The locally compiled macOS application is a development smoke test, not a Windows executable.
+Windows x64 builds and installer packaging have now passed [GitHub Actions](https://github.com/basilaslam/hush-native/actions/runs/42398005603), including Rust/service checks, the native synthetic audio/chat test, and verification that no separate Microsoft C runtime is imported. Download the Windows preview from [Releases](https://github.com/basilaslam/hush-native/releases). Physical WASAPI playback/capture, global F8 inside games, router behavior and gaming performance still require testing on a Windows gaming PC.
 
 ## Develop and verify
 

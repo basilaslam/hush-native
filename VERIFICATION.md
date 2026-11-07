@@ -18,7 +18,7 @@ During local builds the machine ran out of disk space. Only this project's gener
 
 ## Limits and external checks
 
-- No Windows environment was available. The Windows executable/NSIS workflow is implemented but has not run here. Windows compilation, installer behavior, WASAPI devices, native F8 and game privilege interactions require Windows verification.
+- After local development, [Windows CI](https://github.com/basilaslam/hush-native/actions/runs/42398005603) passed at commit `5a5391c9cc88caa7a1e7d91760375ed92795a791`: formatting, Clippy, seven Rust unit tests, five service tests/build, release compilation, static-runtime import verification, native synthetic audio/chat and NSIS packaging. Installing the generated setup program on a physical Windows desktop, WASAPI devices, native F8 and game privilege interactions remain unverified.
 - The Windows workflow embeds an app icon, uses static Opus and packages a per-user installer without WebView2. Distribution signing is not configured.
 - No Vercel deployment or private Blob store was provisioned. The SDK types, origin-read option and conditional-write interface were checked; actual deployed Blob contention, retention, quotas and latency still need a configured cloud test.
 - UPnP mapping and renewal code is implemented but was not exercised against the user's router. No router mappings or firewall changes were made during these tests.
