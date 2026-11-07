@@ -31,6 +31,15 @@ jobs:
       - run: cargo clippy --locked -p hush-native --all-targets -- -D warnings
       - run: cargo test --locked -p hush-native
       - run: cargo build --locked --release -p hush-native
+      - name: Verify no separate Microsoft C runtime is required
+        shell: pwsh
+        run: |
+          $visualStudio = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -property installationPath
+          $dependencyTool = Get-ChildItem "$visualStudio\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $dependencyTool) { throw 'Could not locate the Windows dependency inspection tool' }
+          $dependencies = (& $dependencyTool.FullName /DEPENDENTS target/release/hush-native.exe | Out-String)
+          Write-Output $dependencies
+          if ($dependencies -match 'VCRUNTIME140|MSVCP140') { throw 'The executable still depends on a separate Microsoft C runtime' }
       - name: Test native audio and chat against local coordination
         shell: pwsh
         run: |

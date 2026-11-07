@@ -76,7 +76,7 @@ Anyone with an invitation can join, and direct P2P exposes participants’ netwo
 
 ## Windows installer
 
-On Windows, build with `cargo build --release --locked -p hush-native`. Opus links statically by default on Windows. For the optional per-user installer install NSIS, then run:
+On Windows, build with `cargo build --release --locked -p hush-native`. Opus links statically by default on Windows, and `.cargo/config.toml` selects the static Microsoft C runtime for the x64 Windows build. For the optional per-user installer install NSIS, then run:
 
 ```powershell
 makensis packaging/windows/installer.nsi

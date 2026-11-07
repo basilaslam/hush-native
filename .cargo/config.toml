@@ -1,0 +1,4 @@
+# Keep Windows downloads self-contained. This applies to the native Windows
+# target; it does not change the renderer or add a runtime to the app.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
