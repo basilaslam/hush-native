@@ -46,6 +46,10 @@ impl Desktop {
     pub fn available(&self) -> bool {
         self.tray.is_some()
     }
+    #[cfg(windows)]
+    pub fn probe_commands(&self) -> (usize, [u32; 3]) {
+        self.tray.as_ref().unwrap().probe_commands()
+    }
     pub fn quit(&mut self, ctx: &egui::Context) {
         self.exiting = true;
         ctx.send_viewport_cmd(ViewportCommand::Close);
@@ -107,7 +111,6 @@ mod platform {
 
     pub struct Tray {
         _icon: TrayIcon,
-        #[cfg(test)]
         menu: Menu,
         mute: CheckMenuItem,
     }
@@ -164,7 +167,6 @@ mod platform {
             Ok(Some(Self {
                 _icon: icon,
                 mute,
-                #[cfg(test)]
                 menu,
             }))
         }
@@ -172,6 +174,18 @@ mod platform {
             if self.mute.is_checked() != value {
                 self.mute.set_checked(value);
             }
+        }
+        pub fn probe_commands(&self) -> (usize, [u32; 3]) {
+            use tray_icon::menu::ContextMenu;
+            use windows_sys::Win32::UI::WindowsAndMessaging::GetMenuItemID;
+            let menu = self.menu.hpopupmenu() as _;
+            (self._icon.window_handle() as usize, unsafe {
+                [
+                    GetMenuItemID(menu, 0),
+                    GetMenuItemID(menu, 1),
+                    GetMenuItemID(menu, 3),
+                ]
+            })
         }
     }
     impl Drop for Tray {

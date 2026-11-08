@@ -7,6 +7,8 @@ mod brand;
 mod config;
 mod coordination;
 mod desktop;
+#[cfg(windows)]
+mod desktop_probe;
 mod engine;
 mod integration;
 mod model;
@@ -34,6 +36,10 @@ fn main() -> eframe::Result {
         vsync: true,
         ..Default::default()
     };
+    #[cfg(windows)]
+    if std::env::args().any(|arg| arg == "--desktop-self-test") {
+        return desktop_probe::run(options);
+    }
     eframe::run_native(
         "Hush",
         options,
