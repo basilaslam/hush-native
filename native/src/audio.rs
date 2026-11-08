@@ -46,7 +46,7 @@ impl AudioHandle {
         config: Config,
         controls: Arc<Controls>,
         state: SharedState,
-        repaint: eframe::egui::Context,
+        repaint: crate::wake::Wake,
         encoded: tokio::sync::mpsc::Sender<Encoded>,
     ) -> Result<Self> {
         let (tx, rx) = crossbeam_channel::bounded(256);
@@ -216,7 +216,7 @@ struct AudioWorker {
     config: Config,
     controls: Arc<Controls>,
     state: SharedState,
-    repaint: eframe::egui::Context,
+    repaint: crate::wake::Wake,
     encoded: tokio::sync::mpsc::Sender<Encoded>,
     commands: Receiver<AudioCommand>,
     stop: Arc<AtomicBool>,
@@ -576,6 +576,13 @@ mod tests {
         let controls = Controls::default();
         assert!(controls.transmitting());
         controls.ptt.store(true, Ordering::Relaxed);
+        assert!(!controls.transmitting());
+        controls.pointer_pressed.store(true, Ordering::Relaxed);
+        assert!(controls.transmitting());
+        controls.pressed.store(true, Ordering::Relaxed);
+        controls.pointer_pressed.store(false, Ordering::Relaxed);
+        assert!(controls.transmitting()); // Releasing the pointer must not release the keyboard.
+        controls.pressed.store(false, Ordering::Relaxed);
         assert!(!controls.transmitting());
         controls.pressed.store(true, Ordering::Relaxed);
         assert!(controls.transmitting());

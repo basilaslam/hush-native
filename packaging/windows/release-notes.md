@@ -1,13 +1,14 @@
-Hush v0.5.3 removes the server deployment payload from the native Windows app.
+Hush v0.6.0 adds a Windows tray and configurable push-to-talk shortcuts.
 
-- Desktop downloads contain the native Rust client, documentation and font license. Node, Wrangler and the in-app Deploy server flow are removed.
-- The separate **setup-server.ps1** (Windows) and **setup-server.sh** (macOS/Linux) launchers prepare a private host runtime when needed, verify the server bundle, sign in through official Cloudflare Wrangler, deploy and verify the room server, then print its address.
-- Only the host runs setup. Friends need just the native client and shared server address. GitHub distributes the files and updates; Cloudflare hosts room coordination.
-- Updating from v0.3/v0.4 removes the old bundled deployment folder and preserves app preferences. Existing cloud servers and separately stored sign-in profiles are retained.
-- Manual 2–32-person room sizes and verified GitHub app updates remain available.
+- Close the window to keep voice connected in the tray. Double-click the icon or select Show Hush to reopen it. Right-click for microphone mute and Quit Hush.
+- Hidden/minimized windows skip UI construction and periodic UI timers. Audio, network statistics, chat and push-to-talk state changes update in the background without requesting interface repaints. The native window and GPU allocations remain for fast restoration; this is not a zero-resource or zero-FPS-loss claim.
+- In Voice & settings → Your way to talk, record a keyboard shortcut or type one (for example Ctrl+Shift+V), then save. F8 remains the default for existing installations. Modifiers are supported. Changing to an occupied shortcut during a call keeps the previous binding working.
+- Push-to-talk stays active in the tray. Pointer-based hold-to-talk is released when hiding/minimizing, so the microphone cannot latch open. Mute and deafen continue to override transmission.
+- Quit and Install update & restart fully exit the process. If the tray fails to initialize, closing exits normally so Hush cannot become inaccessible.
+- Native-only small downloads and separate terminal server setup from v0.5.3 are retained. No Node, Wrangler, browser or webview runtime is bundled in the desktop client.
 
-**App:** download Hush-0.5.3-Windows-Setup.exe or Hush-0.5.3-Windows-Portable.zip. Existing v0.4.1 clients can install this version from App updates.
+**Download:** Hush-0.6.0-Windows-Setup.exe or Hush-0.6.0-Windows-Portable.zip. Existing v0.4.1+ clients can install from App updates. Older clients require one manual upgrade. Server redeployment is not needed for the tray/shortcut changes.
 
-**Host setup:** download setup-server.ps1 or setup-server.sh from this release and run it in a terminal. It fetches Hush-Server-Setup.zip and checks SHA256SUMS.txt before installing host dependencies. Node 22+ with npm is reused when available, otherwise a checksum-verified private Node 24 runtime is installed. Browser approval is needed for Cloudflare sign-in. Linux additionally needs an unlocked libsecret keyring/secret-tool.
+Host scripts and Hush-Server-Setup.zip are separate downloads. GitHub hosts releases and updates; Cloudflare hosts room coordination. Only the host runs server setup.
 
-Source and checksums are included. This remains an unsigned Windows preview. Voice is direct encrypted QUIC, with no ICE/TURN fallback; physical multi-PC calls and game FPS remain outside automated CI checks.
+This remains an unsigned Windows preview. Automated checks cover native tray menu messages, visibility/exit behavior, repaint suppression, shortcut conflicts, audio/chat, updates and packaging. Physical microphone/headphone calls, shortcuts inside elevated games, cross-router connectivity and gaming FPS still require testing on your gaming PCs.

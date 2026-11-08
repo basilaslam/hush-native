@@ -40,7 +40,7 @@ pub struct Controller {
     _runtime: tokio::runtime::Runtime,
 }
 impl Controller {
-    pub fn new(repaint: eframe::egui::Context) -> Result<Self> {
+    pub fn new(repaint: crate::wake::Wake) -> Result<Self> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
@@ -80,8 +80,13 @@ impl Controller {
                 "The voice engine is busy. Try again shortly.".into();
         }
     }
+    pub fn control_sender(&self) -> mpsc::Sender<Command> {
+        self.tx.clone()
+    }
     pub fn ptt(&self, pressed: bool) {
-        self.controls.pressed.store(pressed, Ordering::Relaxed);
+        self.controls
+            .pointer_pressed
+            .store(pressed, Ordering::Relaxed);
         self.send(Command::ControlChanged);
     }
     pub fn configure(&self, config: &Config) {
@@ -108,7 +113,7 @@ async fn worker(
     state: SharedState,
     controls: Arc<Controls>,
     cancel: Arc<AtomicBool>,
-    repaint: eframe::egui::Context,
+    repaint: crate::wake::Wake,
 ) {
     while let Some(command) = commands.recv().await {
         match command {
@@ -149,8 +154,9 @@ async fn worker(
                     }
                 }
                 controls.pressed.store(false, Ordering::Relaxed);
+                controls.pointer_pressed.store(false, Ordering::Relaxed);
                 drop(view);
-                repaint.request_repaint();
+                repaint.force();
             }
             Command::Test(config) => {
                 cancel.store(false, Ordering::Release);
@@ -263,7 +269,7 @@ async fn run_session(
     state: SharedState,
     controls: Arc<Controls>,
     cancel: Arc<AtomicBool>,
-    repaint: eframe::egui::Context,
+    repaint: crate::wake::Wake,
 ) -> Result<()> {
     config.validate()?;
     let coordinator = Coordinator::new(&config.server)?;
@@ -327,6 +333,7 @@ async fn run_session(
     controls.muted.store(false, Ordering::Relaxed);
     controls.deafened.store(false, Ordering::Relaxed);
     controls.pressed.store(false, Ordering::Relaxed);
+    controls.pointer_pressed.store(false, Ordering::Relaxed);
     {
         let mut view = state.lock().unwrap();
         view.session = Some((*session).clone());

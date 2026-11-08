@@ -34,14 +34,14 @@ Only the host runs setup. GitHub hosts the scripts and app updates; Cloudflare r
 **Windows PowerShell:**
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing https://github.com/basilaslam/hush-native/releases/download/v0.5.3/setup-server.ps1 -OutFile "$env:TEMP\hush-setup.ps1"
+Invoke-WebRequest -UseBasicParsing https://github.com/basilaslam/hush-native/releases/download/v0.6.0/setup-server.ps1 -OutFile "$env:TEMP\hush-setup.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\hush-setup.ps1"
 ```
 
 **macOS/Linux:**
 
 ```sh
-curl -fL https://github.com/basilaslam/hush-native/releases/download/v0.5.3/setup-server.sh -o setup-server.sh
+curl -fL https://github.com/basilaslam/hush-native/releases/download/v0.6.0/setup-server.sh -o setup-server.sh
 bash setup-server.sh
 ```
 
@@ -88,10 +88,12 @@ The Connection screen reports the actual route/address, QUIC network round trip 
 - Bounded sample rings in device callbacks; no network I/O or mutex acquisition in the steady-state callbacks.
 - Dedicated audio worker with continuous device-rate resampling, bounded jitter buffering, packet loss concealment/FEC and mixing for up to 31 remote streams.
 - Mute, deafen (also blocks microphone transmission), microphone gain and output volume.
-- Global **F8** push-to-talk, registered only during a PTT call; in-app hold-to-talk fallback if F8 is unavailable. Games with higher Windows privilege levels may intercept a global shortcut: test your actual setup.
+- Configurable global push-to-talk shortcut (F8 by default). In **Voice & settings → Your way to talk**, click **Record shortcut**, press a key with optional modifiers, then **Save settings**. You can also type a shortcut such as `Ctrl+Shift+V`. Keyboard shortcuts are registered only during a PTT call; conflicting changes preserve the previous active shortcut. An in-app hold-to-talk fallback is available. Games with higher Windows privilege levels may intercept a global shortcut: test your actual setup.
 - Device selection and local microphone level testing. Device changes require leaving the room. The microphone test is disabled during calls.
 - Gaming mode on by default: no live microphone-meter repaints or decorative animation loop. The interface repaints for input, room events and periodic connection stats.
 - Temporary chat over reliable peer streams. Messages are not stored on the coordination server; joining later does not retrieve history.
+- Windows close-to-tray: closing the window keeps voice and the chosen push-to-talk shortcut active. Double-click the tray icon or choose **Show Hush** to return; right-click for **Mute microphone** or **Quit Hush**.
+- Hidden and minimized windows skip interface construction, meter timers and worker-triggered repaints. Retained window/GPU allocations remain for fast restoration; voice processing still uses CPU/network. Scheduled update checks resume when the window is restored.
 - A compact native window.
 
 This release is voice-first. There is no screen sharing, overlay, recording, acoustic echo cancellation or neural noise suppression. Use headphones. Those features have distinct performance and implementation costs and are not represented as working controls.
@@ -126,7 +128,7 @@ On Windows, build the standalone client with `cargo build --release --locked -p 
 makensis packaging/windows/installer.nsi
 ```
 
-The executable and `packaging/windows/Hush-0.5.3-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
+The executable and `packaging/windows/Hush-0.6.0-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default coordination origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and packages the small native installer/portable app, a separate server setup ZIP and launchers, a source ZIP and checksums. Enable **publish_release** to publish a GitHub preview release only after all checks pass; otherwise it uploads the packages as a workflow artifact.
 

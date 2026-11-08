@@ -1,6 +1,6 @@
 [package]
 name = "hush-native"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2021"
 rust-version = "1.90"
 description = "Native peer-to-peer voice for a small gaming squad"
@@ -31,6 +31,12 @@ url = "2"
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(windows)'.dependencies]
+tray-icon = { version = "0.26.1", default-features = false }
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"

@@ -20,6 +20,7 @@ pub struct Config {
     pub input_gain: f32,
     pub output_volume: f32,
     pub push_to_talk: bool,
+    pub ptt_shortcut: String,
     pub quiet: bool,
     pub port: u16,
     pub public_address: String,
@@ -40,6 +41,7 @@ impl Default for Config {
             input_gain: 1.,
             output_volume: 1.,
             push_to_talk: false,
+            ptt_shortcut: "F8".into(),
             quiet: true,
             port: 41642,
             public_address: String::new(),
@@ -69,6 +71,7 @@ impl Config {
         Ok(())
     }
     pub fn validate(&self) -> Result<()> {
+        crate::shortcut::parse(&self.ptt_shortcut)?;
         if !(2..=MAX_ROOM_MEMBERS).contains(&self.max_members) {
             bail!("Choose a room size from 2 to {MAX_ROOM_MEMBERS}");
         }
@@ -132,6 +135,13 @@ mod tests {
             serde_json::from_str(r#"{"name":"Player","server":"https://room.example"}"#).unwrap();
         assert_eq!(config.max_members, 6);
         assert!(config.check_updates && config.preview_updates);
+        assert_eq!(config.ptt_shortcut, "F8");
+        config.ptt_shortcut = "Ctrl+Shift+V".into();
+        config.push_to_talk = true;
+        let saved = serde_json::to_vec(&config).unwrap();
+        let restored: Config = serde_json::from_slice(&saved).unwrap();
+        assert!(restored.push_to_talk);
+        assert_eq!(restored.ptt_shortcut, "Ctrl+Shift+V");
         for size in [2, 32] {
             config.max_members = size;
             assert!(config.validate().is_ok());

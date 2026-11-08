@@ -1,6 +1,6 @@
 //! GitHub is the update trust origin. No room service or GitHub token is involved.
+use crate::wake::Wake;
 use anyhow::{bail, Context, Result};
-use eframe::egui;
 use semver::Version;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -224,11 +224,7 @@ pub fn previous_install_error() -> Option<String> {
     }
     None
 }
-async fn download(
-    release: &Release,
-    state: &Arc<Mutex<State>>,
-    repaint: &egui::Context,
-) -> Result<PathBuf> {
+async fn download(release: &Release, state: &Arc<Mutex<State>>, repaint: &Wake) -> Result<PathBuf> {
     let http = client()?;
     let filename = format!("Hush-{}-Windows-Setup.exe", release.version);
     let sums = limited(
@@ -310,8 +306,8 @@ impl Updater {
     }
     fn job(
         &self,
-        repaint: egui::Context,
-        job: impl FnOnce(&Arc<Mutex<State>>, &egui::Context) -> Result<()> + Send + 'static,
+        repaint: Wake,
+        job: impl FnOnce(&Arc<Mutex<State>>, &Wake) -> Result<()> + Send + 'static,
     ) {
         let state = self.state.clone();
         if let Err(error) = std::thread::Builder::new()
@@ -335,7 +331,7 @@ impl Updater {
             view.message = error.to_string();
         }
     }
-    pub fn check(&self, repaint: egui::Context, previews: bool) {
+    pub fn check(&self, repaint: Wake, previews: bool) {
         {
             let mut view = self.state.lock().unwrap();
             if view.busy {
@@ -361,7 +357,7 @@ impl Updater {
             Ok(())
         });
     }
-    pub fn download(&self, repaint: egui::Context) {
+    pub fn download(&self, repaint: Wake) {
         let release = {
             let mut view = self.state.lock().unwrap();
             if view.busy {

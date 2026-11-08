@@ -2,12 +2,18 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
+## Windows tray and custom push-to-talk — v0.6.0
+
+- Added native Windows Show/Mute/Quit tray controls, close cancellation and restoration. Normal close exits if tray initialization fails; Quit and update installation bypass hiding. Hidden/minimized windows return before panels/timers, and shared worker repaint gating suppresses background voice/chat/statistics/update repaint requests. Explicit tray actions and call-end housekeeping can still wake a lifecycle frame. Native window/GL allocations are retained.
+- Added a saved keyboard binding, recording with optional modifiers, manual entry and default F8 for older preferences. Registration changes reserve the new shortcut first so conflicts preserve the active binding. Keyboard and pointer PTT state are separate; hiding/minimizing releases only the pointer state.
+- Windows tests exercise real native tray menu messages and callbacks, hidden output, restore commands, mute, Quit and update exit, plus native shortcut conflict handling. Cross-platform tests cover repaint suppression across 10,000 worker events, preference compatibility/round trips, shortcut recording/parsing and PTT mute/deafen precedence. Physical game performance and shortcuts in elevated games are not established by these tests.
+
 ## Small client and standalone terminal setup — v0.5.3
 
 - Removed the native deployment module, in-app Cloudflare setup controls and bundled Node/Wrangler payload. Voice, room-size selection and the GitHub updater remain native. New installers remove the old app-owned deployment folder; host state and desktop preferences live outside it.
 - Local Clippy, formatting, service build and 13 native tests passed. Eighteen service/setup tests ran locally: 17 passed and the Windows-only native/Cloudflare integration case was skipped. Setup tests cover secure environment isolation, URL/protocol/identity verification, selected-account deployment, saved-worker reuse and a dry run that invokes no sign-in or cloud writes.
 - The macOS launcher downloaded and checksum-verified a private Node 24 runtime. A fresh host-tool installation with that runtime passed the Worker dry run. No Cloudflare sign-in or actual cloud deployment was performed during these checks.
-- CI now validates the shipped PowerShell/Bash launchers against the separate server bundle, enforces a 12 MB desktop-download budget, and tests silent installation over a simulated old payload while checking preserved preferences/server state. Actual end-user browser OAuth and network calls remain subject to the existing physical-device limits below.
+- [Windows and Unix CI](https://github.com/basilaslam/hush-native/actions/runs/42460554393) passed all build/setup/release jobs. Published v0.5.3 downloads passed checksum, native-only archive, source-commit and live-updater metadata verification. The shipped Bash launcher also completed a fresh private-runtime dry run directly from GitHub on macOS. The installer is 4,471,045 bytes and the portable ZIP is 4,513,558 bytes. CI validates the shipped PowerShell/Bash launchers against the separate server bundle, enforces a 12 MB desktop-download budget, and tests silent installation over a simulated old payload while checking preserved preferences/server state. Actual end-user browser OAuth and network calls remain subject to the existing physical-device limits below.
 
 ## Configurable rooms and GitHub updates — v0.4.1
 

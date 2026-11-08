@@ -6,12 +6,15 @@ mod audio;
 mod brand;
 mod config;
 mod coordination;
+mod desktop;
 mod engine;
 mod integration;
 mod model;
+mod shortcut;
 mod transport;
 mod ui;
 mod updater;
+mod wake;
 fn main() -> eframe::Result {
     let _ = rustls::crypto::ring::default_provider().install_default();
     if std::env::args().any(|arg| arg == "--self-test") {

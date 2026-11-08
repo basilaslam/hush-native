@@ -8,10 +8,7 @@ use eframe::egui::{
     self, Align, Color32, CornerRadius, FontId, Frame, Layout, Margin, Pos2, Rect, RichText, Sense,
     Stroke, Vec2,
 };
-use global_hotkey::{
-    hotkey::{Code, HotKey},
-    GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState,
-};
+use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use std::{
     sync::{atomic::Ordering, Arc},
     time::Duration,
@@ -376,7 +373,11 @@ pub struct HushApp {
     inputs: Vec<String>,
     outputs: Vec<String>,
     hotkey: Option<GlobalHotKeyManager>,
-    hotkey_registered: bool,
+    hotkey_registered: Option<HotKey>,
+    hotkey_failed: Option<HotKey>,
+    recording_shortcut: bool,
+    desktop: crate::desktop::Desktop,
+    wake: crate::wake::Wake,
     copied: bool,
 }
 impl HushApp {
@@ -456,23 +457,31 @@ impl HushApp {
                 .insert(egui::TextStyle::Button, FontId::proportional(13.));
         });
         let config = Config::load();
-        let engine = Controller::new(ctx.clone())?;
+        let wake = crate::wake::Wake::new(ctx.clone());
+        let engine = Controller::new(wake.clone())?;
+        let desktop = crate::desktop::Desktop::new(wake.clone()).unwrap_or_else(|error| {
+            engine.state.lock().unwrap().error =
+                format!("The tray could not start: {error}. Closing the window will exit Hush.");
+            crate::desktop::Desktop::unavailable(wake.clone())
+        });
         if let Some(error) = crate::updater::previous_install_error() {
             engine.state.lock().unwrap().error = error;
         }
         engine.configure(&config);
         let controls = engine.controls.clone();
-        let repaint = ctx.clone();
+        let repaint = wake.clone();
+        let control_sender = engine.control_sender();
         GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
             controls
                 .pressed
                 .store(event.state == HotKeyState::Pressed, Ordering::Relaxed);
+            let _ = control_sender.try_send(Command::ControlChanged);
             repaint.request_repaint();
         }));
         let hotkey = GlobalHotKeyManager::new().ok();
         let updater = crate::updater::Updater::default();
         if config.check_updates {
-            updater.check(ctx.clone(), config.preview_updates);
+            updater.check(wake.clone(), config.preview_updates);
         }
         Ok(Self {
             engine,
@@ -489,17 +498,34 @@ impl HushApp {
             inputs: vec![],
             outputs: vec![],
             hotkey,
-            hotkey_registered: false,
+            hotkey_registered: None,
+            hotkey_failed: None,
+            recording_shortcut: false,
+            desktop,
+            wake,
             copied: false,
         })
     }
     fn save(&mut self) {
-        self.engine.configure(&self.draft);
-        if let Err(error) = self.draft.save() {
+        if let Err(error) = crate::shortcut::parse(&self.draft.ptt_shortcut) {
             self.engine.state.lock().unwrap().error = error.to_string();
             return;
         }
+        let active = self.engine.state.lock().unwrap().session.is_some();
+        let draft = self.draft.clone();
+        if let Err(error) = self.apply_hotkey(active && draft.push_to_talk, &draft.ptt_shortcut) {
+            self.engine.state.lock().unwrap().error = error.to_string();
+            return;
+        }
+        if let Err(error) = self.draft.save() {
+            let config = self.config.clone();
+            let _ = self.apply_hotkey(active && config.push_to_talk, &config.ptt_shortcut);
+            self.engine.state.lock().unwrap().error = error.to_string();
+            return;
+        }
+        self.engine.configure(&self.draft);
         self.config = self.draft.clone();
+        self.recording_shortcut = false;
         self.engine.state.lock().unwrap().notice = "Settings saved on this device.".into();
     }
     fn begin(&mut self, invitation: Option<String>) {
@@ -520,25 +546,43 @@ impl HushApp {
         self.page = Page::Room;
     }
     fn sync_hotkey(&mut self, active: bool) {
-        let wanted = active && self.config.push_to_talk;
-        if wanted == self.hotkey_registered {
+        let wanted = active && self.config.push_to_talk && !self.recording_shortcut;
+        let binding = self.config.ptt_shortcut.clone();
+        if !wanted {
+            self.hotkey_failed = None;
+        }
+        if wanted && crate::shortcut::parse(&binding).ok() == self.hotkey_failed {
             return;
         }
-        if let Some(manager) = &self.hotkey {
-            let hotkey = HotKey::new(None, Code::F8);
-            if wanted {
-                match manager.register(hotkey) {
-                    Ok(()) => self.hotkey_registered = true,
-                    Err(error) => {
-                        self.engine.state.lock().unwrap().notice=format!("Global F8 could not register: {error}. Use the in-app hold-to-talk button.");
-                    }
-                }
-            } else {
-                let _ = manager.unregister(hotkey);
-                self.hotkey_registered = false;
-                self.engine.ptt(false);
-            }
+        if let Err(error) = self.apply_hotkey(wanted, &binding) {
+            self.hotkey_failed = crate::shortcut::parse(&binding).ok();
+            self.engine.state.lock().unwrap().notice =
+                format!("{error}. Use the in-app hold-to-talk button.");
         }
+    }
+    fn apply_hotkey(&mut self, wanted: bool, binding: &str) -> anyhow::Result<()> {
+        let target = if wanted {
+            Some(crate::shortcut::parse(binding)?)
+        } else {
+            None
+        };
+        if target == self.hotkey_registered {
+            return Ok(());
+        }
+        if target.is_some() {
+            let manager = self.hotkey.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("Global shortcuts are unavailable on this desktop")
+            })?;
+            crate::shortcut::replace(manager, &mut self.hotkey_registered, target)
+                .map_err(|error| anyhow::anyhow!("Cannot use {binding}: {error}"))?;
+        } else if let Some(manager) = &self.hotkey {
+            crate::shortcut::replace(manager, &mut self.hotkey_registered, None)?;
+        }
+        self.hotkey_registered = target;
+        self.hotkey_failed = None;
+        self.engine.controls.pressed.store(false, Ordering::Relaxed);
+        self.engine.ptt(false);
+        Ok(())
     }
     fn settings(&mut self, ui: &mut egui::Ui, state: &ViewState) {
         ui.set_max_width(ui.available_width().min(820.));
@@ -701,8 +745,40 @@ impl HushApp {
                 "Simple controls that keep the game in focus.",
                 Icon::Mic,
             );
-            ui.checkbox(&mut self.draft.push_to_talk, "Push to talk · global F8");
-            small(ui, "F8 is active only during calls. The in-app hold-to-talk button is always available.");
+            ui.checkbox(&mut self.draft.push_to_talk, "Push to talk");
+            label(ui, "Keyboard shortcut");
+            ui.horizontal(|ui| {
+                ui.add_enabled(
+                    !self.recording_shortcut,
+                    text_field(&mut self.draft.ptt_shortcut, "F8 or Ctrl+Shift+V", 60),
+                );
+                if ui
+                    .button(if self.recording_shortcut {
+                        "Cancel recording"
+                    } else {
+                        "Record shortcut"
+                    })
+                    .clicked()
+                {
+                    self.recording_shortcut = !self.recording_shortcut;
+                    if self.recording_shortcut {
+                        self.sync_hotkey(false);
+                    }
+                }
+                if ui.button("Reset to F8").clicked() {
+                    self.draft.ptt_shortcut = "F8".into();
+                    self.recording_shortcut = false;
+                }
+            });
+            if self.recording_shortcut {
+                small(ui, "Press a key with optional Ctrl, Alt or Shift modifiers. Escape cancels. Then save settings.");
+            } else {
+                small(ui, "Save to apply. Active only during calls, including in the tray. Keyboard shortcuts only; the in-app hold-to-talk button is always available.");
+            }
+            if self.desktop.available() {
+                ui.add_space(8.);
+                small(ui, "Closing Hush keeps voice running in the tray and suspends interface rendering. Right-click the tray icon to show, mute, or quit.");
+            }
             ui.add_space(10.);
             ui.checkbox(&mut self.draft.quiet, "Gaming mode");
             small(
@@ -772,7 +848,7 @@ impl HushApp {
                 if action(ui, "Check for updates", Icon::Arrow, false).clicked() {
                     self.last_update_check = std::time::Instant::now();
                     self.updater
-                        .check(ui.ctx().clone(), self.draft.preview_updates);
+                        .check(self.wake.clone(), self.draft.preview_updates);
                 }
             });
             if let Some(release) = &update.release {
@@ -783,16 +859,14 @@ impl HushApp {
                         if update.installer.is_some() {
                             if action(ui, "Install update & restart", Icon::Arrow, true).clicked() {
                                 match self.config.save().and_then(|()| self.updater.install()) {
-                                    Ok(()) => {
-                                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close)
-                                    }
+                                    Ok(()) => self.desktop.quit(ui.ctx()),
                                     Err(error) => {
                                         self.engine.state.lock().unwrap().error = error.to_string()
                                     }
                                 }
                             }
                         } else if action(ui, "Download update", Icon::Arrow, true).clicked() {
-                            self.updater.download(ui.ctx().clone());
+                            self.updater.download(self.wake.clone());
                         }
                     },
                 );
@@ -1008,13 +1082,19 @@ impl HushApp {
                         });
                         if active && self.config.push_to_talk {
                             let response = ui.add(
-                                egui::Button::new(RichText::new("Hold to talk · F8").color(
-                                    if self.engine.controls.transmitting() {
-                                        INK
-                                    } else {
-                                        TEXT
-                                    },
-                                ))
+                                egui::Button::new(
+                                    RichText::new(format!(
+                                        "Hold to talk · {}",
+                                        self.config.ptt_shortcut
+                                    ))
+                                    .color(
+                                        if self.engine.controls.transmitting() {
+                                            INK
+                                        } else {
+                                            TEXT
+                                        },
+                                    ),
+                                )
                                 .fill(if self.engine.controls.transmitting() {
                                     GREEN
                                 } else {
@@ -1401,7 +1481,7 @@ impl HushApp {
         ui.set_max_width(ui.available_width().min(820.));
         title(ui, "A little help, before you play.", 30.);
         ui.add_space(25.);
-        for(title_text,body)in[("Bring your people","Give yourself a name, create a room and copy its hush1 invitation. Friends paste it into Join with an invite in their native app. Web demo invitations are a different protocol."),("A small, native audio path","The microphone feeds a bounded sample ring. One worker encodes 20 ms mono Opus frames once, then shares those bytes with the squad. Incoming frames use a bounded jitter buffer and mix directly to the sound device."),("Your own home base","The host runs the server setup script from GitHub, signs in to Cloudflare, and shares the resulting HTTPS address. Paste it in Voice & settings. Friends need no deployment tools. Existing Vercel servers are also supported."),("Router access matters","Allow Hush on private Windows networks. Automatic UPnP opens a temporary UDP mapping only for the room. If mapping is unavailable, forward the chosen UDP port and enter the public IPv4:port. Carrier-grade NAT and some restricted networks will still block direct calls."),("Keep the game first","Gaming mode is on by default. It stops live microphone-meter repaints. F8 is registered globally only during push-to-talk calls. A game running with elevated privileges may block a shortcut; test your setup."),("Measure before promising","This is a native implementation designed for low overhead. Compare game frame times, CPU, memory and network loss on your gaming PC before claiming an improvement. No zero-FPS-loss promise is made.")]{title(ui,title_text,16.);ui.add_space(7.);ui.label(RichText::new(body).size(13.).color(MUTED));ui.add_space(23.);}
+        for(title_text,body)in[("Bring your people","Give yourself a name, create a room and copy its hush1 invitation. Friends paste it into Join with an invite in their native app. Web demo invitations are a different protocol."),("A small, native audio path","The microphone feeds a bounded sample ring. One worker encodes 20 ms mono Opus frames once, then shares those bytes with the squad. Incoming frames use a bounded jitter buffer and mix directly to the sound device."),("Your own home base","The host runs the server setup script from GitHub, signs in to Cloudflare, and shares the resulting HTTPS address. Paste it in Voice & settings. Friends need no deployment tools. Existing Vercel servers are also supported."),("Router access matters","Allow Hush on private Windows networks. Automatic UPnP opens a temporary UDP mapping only for the room. If mapping is unavailable, forward the chosen UDP port and enter the public IPv4:port. Carrier-grade NAT and some restricted networks will still block direct calls."),("Keep the game first","Gaming mode is on by default. It stops live microphone-meter repaints. Your chosen shortcut is registered globally only during push-to-talk calls, including in the tray. A game running with elevated privileges may block a shortcut; test your setup."),("Measure before promising","This is a native implementation designed for low overhead. Compare game frame times, CPU, memory and network loss on your gaming PC before claiming an improvement. No zero-FPS-loss promise is made.")]{title(ui,title_text,16.);ui.add_space(7.);ui.label(RichText::new(body).size(13.).color(MUTED));ui.add_space(23.);}
     }
     fn chat_panel(&mut self, ctx: &egui::Context, state: &ViewState) {
         egui::SidePanel::right("chat")
@@ -1479,26 +1559,56 @@ fn avatar(ui: &mut egui::Ui, name: &str, size: f32, color: Color32) {
 }
 impl eframe::App for HushApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let foreground = self.desktop.update(ctx, &self.engine);
+        if !foreground || self.page != Page::Settings {
+            self.recording_shortcut = false;
+        }
+        // Native desktop actions and call-end transitions still get lifecycle housekeeping.
+        let active = self.engine.state.lock().unwrap().session.is_some();
+        self.sync_hotkey(active);
+        if !foreground {
+            return;
+        }
+        if self.recording_shortcut {
+            let chord = ctx.input(|input| {
+                input.events.iter().find_map(|event| {
+                    if let egui::Event::Key {
+                        key,
+                        physical_key,
+                        pressed: true,
+                        repeat: false,
+                        modifiers,
+                    } = event
+                    {
+                        Some((physical_key.unwrap_or(*key), *modifiers))
+                    } else {
+                        None
+                    }
+                })
+            });
+            if let Some((key, modifiers)) = chord {
+                if key == egui::Key::Escape {
+                    self.recording_shortcut = false;
+                } else if let Some(binding) = crate::shortcut::record(key, modifiers) {
+                    self.draft.ptt_shortcut = binding;
+                    self.recording_shortcut = false;
+                }
+                ctx.input_mut(|input| {
+                    input.consume_key(modifiers, key);
+                });
+            }
+        }
         if self.config.check_updates {
             let interval = std::time::Duration::from_secs(6 * 60 * 60);
             if self.last_update_check.elapsed() >= interval && !self.updater.snapshot().busy {
                 self.last_update_check = std::time::Instant::now();
-                self.updater.check(ctx.clone(), self.config.preview_updates);
+                self.updater
+                    .check(self.wake.clone(), self.config.preview_updates);
             }
             ctx.request_repaint_after(interval.saturating_sub(self.last_update_check.elapsed()));
         }
         let state = self.engine.state.lock().unwrap().clone();
         self.sync_hotkey(state.session.is_some());
-        // The hotkey callback updates the atomic immediately, independent of UI focus.
-        let pressed = self.engine.controls.pressed.load(Ordering::Relaxed);
-        let prior = ctx.data(|data| {
-            data.get_temp::<bool>(egui::Id::new("native_ptt"))
-                .unwrap_or(false)
-        });
-        if pressed != prior {
-            self.engine.send(Command::ControlChanged);
-            ctx.data_mut(|data| data.insert_temp(egui::Id::new("native_ptt"), pressed));
-        }
         let width = ctx.content_rect().width();
         if width > 850. {
             self.sidebar(ctx, &state);
@@ -1657,10 +1767,9 @@ impl eframe::App for HushApp {
     }
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.engine.send(Command::Shutdown);
-        if self.hotkey_registered {
-            if let Some(manager) = &self.hotkey {
-                let _ = manager.unregister(HotKey::new(None, Code::F8));
-            }
+        if let (Some(hotkey), Some(manager)) = (self.hotkey_registered.take(), &self.hotkey) {
+            let _ = manager.unregister(hotkey);
         }
+        GlobalHotKeyEvent::set_event_handler(None::<fn(GlobalHotKeyEvent)>);
     }
 }

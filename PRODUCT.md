@@ -13,4 +13,6 @@ One encode per frame shared across peers, bounded audio/network queues, isolated
 ## Identity and Design
 Hush is a working name. Preserve the established forest/leaf/cream palette and compact room/navigation/voice-dock structure. The application uses embedded static Manrope fonts and native controls rather than a WebView.
 ## Open Work Requiring External Environments
-Deploy private Vercel Blob/Functions; compile and install on Windows; test WASAPI, global F8, firewall behavior, cross-router connectivity and game performance. Screen sharing, overlays and advanced speech processing remain outside this voice-first release.
+Deploy private Vercel Blob/Functions; compile and install on Windows; test WASAPI, configurable global push-to-talk shortcuts, firewall behavior, cross-router connectivity and game performance. Screen sharing, overlays and advanced speech processing remain outside this voice-first release.
+
+Windows background use: closing the window hides it to the tray. Hidden/minimized UI work is suspended while the native audio/network engine continues. Tray controls show, mute and quit. Push-to-talk supports saved keyboard bindings with optional modifiers; default F8.

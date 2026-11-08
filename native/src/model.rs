@@ -82,6 +82,7 @@ pub struct Controls {
     pub deafened: AtomicBool,
     pub ptt: AtomicBool,
     pub pressed: AtomicBool,
+    pub pointer_pressed: AtomicBool,
     pub level: AtomicU32,
     pub gain: AtomicU32,
     pub volume: AtomicU32,
@@ -94,6 +95,7 @@ impl Default for Controls {
             deafened: AtomicBool::new(false),
             ptt: AtomicBool::new(false),
             pressed: AtomicBool::new(false),
+            pointer_pressed: AtomicBool::new(false),
             level: AtomicU32::new(0),
             gain: AtomicU32::new(1f32.to_bits()),
             volume: AtomicU32::new(1f32.to_bits()),
@@ -104,7 +106,9 @@ impl Controls {
     pub fn transmitting(&self) -> bool {
         !self.muted.load(Ordering::Relaxed)
             && !self.deafened.load(Ordering::Relaxed)
-            && (!self.ptt.load(Ordering::Relaxed) || self.pressed.load(Ordering::Relaxed))
+            && (!self.ptt.load(Ordering::Relaxed)
+                || self.pressed.load(Ordering::Relaxed)
+                || self.pointer_pressed.load(Ordering::Relaxed))
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
