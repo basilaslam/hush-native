@@ -2,6 +2,13 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
+## Logo update — v0.2.1
+
+- The conversation-H SVG master, transparent marks and outlined wordmark were visually inspected. PNG exports were rasterized at high density; native RGBA dimensions/transparency and all six Windows ICO sizes were verified.
+- [Windows CI](https://github.com/basilaslam/hush-native/actions/runs/42445824727) passed at `0bd92e4f9b84403067a4c159b407a05e5674954f`: formatting, Clippy, seven Rust tests, five service tests/build, optimized compilation, static-runtime imports, synthetic QUIC/Opus/chat integration and NSIS packaging.
+- Downloaded build artifacts matched CI SHA-256 checksums. The Windows x64 GUI executable contains the updated icon resource and imports no separate Microsoft C runtime. No physical Windows UI, microphone or gaming benchmark was performed for this artwork update.
+- Cloudflare and relay recommendations in `docs/PRIVATE-USE.md` are a proposed architecture. The transport and deployed-service status remain unchanged by this release.
+
 ## Checks completed locally
 
 - Native macOS development build compiled and its room/settings interface was inspected in a real native window.

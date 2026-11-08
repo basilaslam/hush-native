@@ -38,6 +38,8 @@ No provider token belongs in the desktop app. `BLOB_READ_WRITE_TOKEN` and `CRON_
 
 The API uses `/api/native-room` for admission, roster refresh, status and leaving. Private Blob reads explicitly bypass CDN caching; conditional ETag writes prevent concurrent room joins from overwriting each other. Unchanged polls do not write to Blob. Live rooms refresh their expiry; inactive peers expire after two minutes. The cleanup job removes expired metadata. The bounded daily sweep inspects at most 1,000 documents, so a larger public service needs a scalable retention strategy. Logical room expiry is enforced even before physical cleanup.
 
+For a proposed alternative aimed at regular private calls, see [Hosting Hush for a private squad](docs/PRIVATE-USE.md). It explains Cloudflare coordination and a relay fallback; these are recommendations, not features of the current release.
+
 ## Direct P2P connectivity — the Vercel-only trade-off
 
 Voice and chat travel directly over encrypted QUIC/TLS, independently of the coordination service. This is not an HTTP voice relay.
@@ -88,7 +90,7 @@ The executable and `packaging/windows/Hush-0.2.1-Windows-Setup.exe` require no b
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default Vercel origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and uploads them as an artifact. It does not publish a release.
 
-Windows x64 builds and installer packaging have now passed [GitHub Actions](https://github.com/basilaslam/hush-native/actions/runs/42398005603), including Rust/service checks, the native synthetic audio/chat test, and verification that no separate Microsoft C runtime is imported. Download the Windows preview from [Releases](https://github.com/basilaslam/hush-native/releases). Physical WASAPI playback/capture, global F8 inside games, router behavior and gaming performance still require testing on a Windows gaming PC.
+Windows x64 builds and installer packaging have passed [GitHub Actions for v0.2.1](https://github.com/basilaslam/hush-native/actions/runs/42445824727), including Rust/service checks, the native synthetic audio/chat test, and verification that no separate Microsoft C runtime is imported. Download the Windows preview from [Releases](https://github.com/basilaslam/hush-native/releases). Physical WASAPI playback/capture, global F8 inside games, router behavior and gaming performance still require testing on a Windows gaming PC.
 
 ## Develop and verify
 
