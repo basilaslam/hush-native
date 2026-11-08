@@ -48,6 +48,8 @@ jobs:
           $env:HUSH_SETUP_HOME = "$env:RUNNER_TEMP/hush bootstrap tools"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-server.ps1 -UseLocalNode -BootstrapOnly
           if ($LASTEXITCODE -ne 0) { throw 'Windows host runtime bootstrap failed' }
+          $oldRelease = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','scripts/setup-server.ps1','-UseLocalNode','-Release','v0.4.1','-DryRun') -Wait -PassThru -RedirectStandardOutput 'old-release.stdout.log' -RedirectStandardError 'old-release.stderr.log'
+          if ($oldRelease.ExitCode -eq 0 -or (Get-Content old-release.stderr.log -Raw) -notmatch 'Missing or ambiguous checksum') { throw 'Binary-served GitHub checksum metadata was not decoded correctly' }
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked -p hush-native --all-targets -- -D warnings
       - run: cargo test --locked -p hush-native

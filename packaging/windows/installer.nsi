@@ -1,7 +1,7 @@
 Unicode True
 !include "MUI2.nsh"
 Name "Hush"
-OutFile "Hush-0.5.0-Windows-Setup.exe"
+OutFile "Hush-0.5.1-Windows-Setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\Hush"
 RequestExecutionLevel user
 Icon "..\..\native\assets\icon.ico"
@@ -27,7 +27,7 @@ Section "Hush native desktop client"
   CreateShortcut "$SMPROGRAMS\Hush\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Hush" "DisplayName" "Hush native voice"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Hush" "UninstallString" '"$INSTDIR\Uninstall.exe"'
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Hush" "DisplayVersion" "0.5.0"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Hush" "DisplayVersion" "0.5.1"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Hush" "DisplayIcon" "$INSTDIR\hush-native.exe"
 SectionEnd
 Section "Uninstall"

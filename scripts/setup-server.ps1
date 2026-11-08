@@ -1,5 +1,5 @@
 param(
-  [string]$Release = 'v0.5.0',
+  [string]$Release = 'v0.5.1',
   [switch]$DryRun,
   [switch]$BootstrapOnly,
   [switch]$UseLocalNode,
@@ -16,7 +16,10 @@ if (-not $toolHome) { $toolHome = Join-Path ([Environment]::GetFolderPath('Local
 $scratch = Join-Path $toolHome ([Guid]::NewGuid().ToString())
 [IO.Directory]::CreateDirectory($scratch) | Out-Null
 function Get-Text([string]$Url) {
-  return (Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 120).Content
+  # Release assets may use application/octet-stream even for SHA256SUMS.txt.
+  $textFile = Join-Path $scratch ([Guid]::NewGuid().ToString() + '.txt')
+  Invoke-WebRequest -Uri $Url -UseBasicParsing -OutFile $textFile -TimeoutSec 120
+  return [IO.File]::ReadAllText($textFile)
 }
 function Test-Checksum([string]$File, [string]$Expected) {
   $stream = [IO.File]::OpenRead($File)
@@ -72,12 +75,14 @@ try {
   if ($BundleDirectory) {
     $BundleDirectory = (Resolve-Path -LiteralPath $BundleDirectory).ProviderPath
     $sums = [IO.File]::ReadAllText((Join-Path $BundleDirectory 'SHA256SUMS.txt'))
+    $expected = Get-Checksum $sums 'Hush-Server-Setup.zip'
     [IO.File]::Copy((Join-Path $BundleDirectory 'Hush-Server-Setup.zip'), $archive)
   } else {
     $sums = Get-Text ($base + 'SHA256SUMS.txt')
+    $expected = Get-Checksum $sums 'Hush-Server-Setup.zip'
     Invoke-WebRequest -Uri ($base + 'Hush-Server-Setup.zip') -OutFile $archive -UseBasicParsing -TimeoutSec 180
   }
-  Test-Checksum $archive (Get-Checksum $sums 'Hush-Server-Setup.zip')
+  Test-Checksum $archive $expected
   $expanded = Join-Path $scratch 'server'
   [IO.Compression.ZipFile]::ExtractToDirectory($archive, $expanded)
   $application = Join-Path $toolHome "releases\$Release"

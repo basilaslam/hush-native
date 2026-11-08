@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-release="${HUSH_SETUP_RELEASE:-v0.5.0}"
+release="${HUSH_SETUP_RELEASE:-v0.5.1}"
 if [[ ! "$release" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then echo 'Invalid release version.' >&2; exit 1; fi
 tool_home="${HUSH_SETUP_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/hush/server-tools}"
 mkdir -p "$tool_home"

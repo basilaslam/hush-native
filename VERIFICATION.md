@@ -2,7 +2,7 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
-## Small client and standalone terminal setup — v0.5.0
+## Small client and standalone terminal setup — v0.5.1
 
 - Removed the native deployment module, in-app Cloudflare setup controls and bundled Node/Wrangler payload. Voice, room-size selection and the GitHub updater remain native. New installers remove the old app-owned deployment folder; host state and desktop preferences live outside it.
 - Local Clippy, formatting, service build and 13 native tests passed. Eighteen service/setup tests ran locally: 17 passed and the Windows-only native/Cloudflare integration case was skipped. Setup tests cover secure environment isolation, URL/protocol/identity verification, selected-account deployment, saved-worker reuse and a dry run that invokes no sign-in or cloud writes.
