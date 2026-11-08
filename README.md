@@ -27,7 +27,7 @@ npm run native:build
 
 Open **Voice & settings** in the app, click **Deploy server**, complete Cloudflare sign-in and consent in your browser, then choose your name and devices. Hush verifies the new server and saves its address automatically. You can also enter an existing Cloudflare or Vercel HTTPS origin and save. Create a room or join with a `hush1.…` invitation. Each participant needs the native app and the same coordination deployment. Browser-demo invitations from the earlier prototype are incompatible.
 
-## Deploy a server from Hush (Windows v0.4.0)
+## Deploy a server from Hush (Windows v0.4.1)
 
 Only the host needs a Cloudflare account. Click **Voice & settings → Deploy server** and complete the official Wrangler browser sign-in. Choose an account if you have several. Hush deploys a Worker with SQLite Durable Objects, checks its deployment identity and native protocol, then saves its HTTPS address. Share that server address and the room invitation with your friends; invitations currently do not include the server address.
 
@@ -82,7 +82,7 @@ This release is voice-first. There is no screen sharing, overlay, recording, aco
 
 Choose **Room size** in the lobby before creating a room. The server enforces 2–32 people, including the creator; six remains the default. Capacity is fixed for that room. Create a new room to change it. Unlimited mesh rooms are not supported: every participant sends voice to every other participant, so larger rooms increase CPU and upload traffic. The upper setting is not a performance guarantee.
 
-To use rooms above six, **all participants need v0.4.0 or newer**, and the host must run **Deploy server** again (or redeploy Vercel) with the updated source. Older rooms and clients retain their six-person defaults. Updating the app does not automatically update an already deployed room server.
+To use rooms above six, **all participants need v0.4.1 or newer**, and the host must run **Deploy server** again (or redeploy Vercel) with the updated source. Older rooms and clients retain their six-person defaults. Updating the app does not automatically update an already deployed room server.
 
 In **Voice & settings → App updates**, Hush checks this public GitHub repository at startup and every six hours. Disable automatic checks or exclude preview releases with the checkboxes and Save settings. Preview updates are included by default because this app currently ships preview releases. Checks do not need a GitHub account/token; API/network failures are recoverable and do not close calls.
 
@@ -90,7 +90,7 @@ On Windows, choose **Download update**, then **Install update & restart**. Downl
 
 Downloads use bounded HTTPS requests to this repository and GitHub asset hosts. The app checks both GitHub's asset SHA-256 digest and `SHA256SUMS.txt`, rejects mismatches/oversized files, and refuses downgrades. These hashes check integrity; they are not independent publisher signatures. The trusted GitHub repository/account remains the update trust boundary. The Windows preview is still unsigned. Automatic installation is Windows-only.
 
-**v0.3.0 has no updater:** install v0.4.0 manually once. Future releases can then be applied from the app. Maintainers bump the versions and release notes, commit, then push a matching `v…` tag; GitHub Actions tests/builds and publishes the preview. Manual workflow dispatch with `publish_release` remains available.
+**v0.3.0 has no updater:** install v0.4.1 manually once. Future releases can then be applied from the app. Maintainers bump the versions and release notes, commit, then push a matching `v…` tag; GitHub Actions tests/builds and publishes the preview. Manual workflow dispatch with `publish_release` remains available.
 
 ## Security and privacy
 
@@ -108,7 +108,7 @@ On Windows, prepare the deployment payload with `npm ci`, `npm ci --prefix deplo
 makensis packaging/windows/installer.nsi
 ```
 
-The executable and `packaging/windows/Hush-0.4.0-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
+The executable and `packaging/windows/Hush-0.4.1-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default coordination origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and packages a portable ZIP with the complete deployment helper, a source ZIP and checksums. Enable **publish_release** to publish a GitHub preview release only after all checks pass; otherwise it uploads the packages as a workflow artifact.
 

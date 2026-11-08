@@ -429,6 +429,7 @@ impl Updater {
             std::process::Command::new(
                 PathBuf::from(windows).join("System32/WindowsPowerShell/v1.0/powershell.exe"),
             )
+            .env_remove("PSModulePath")
             .args([
                 "-NoProfile",
                 "-NonInteractive",
@@ -458,7 +459,11 @@ try {{
     if ((Get-Date) -gt $deadline) {{ throw 'Hush did not close. Update cancelled.' }}
     Start-Sleep -Milliseconds 300
   }}
-  if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLower() -ne '{digest}') {{ throw 'Installer checksum changed. Update cancelled.' }}
+  $stream = [System.IO.File]::OpenRead($installer)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {{ $hash = [System.BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }}
+  finally {{ $stream.Dispose(); $sha.Dispose() }}
+  if ($hash -ne '{digest}') {{ throw 'Installer checksum changed. Update cancelled.' }}
   $destination = Split-Path -Parent $exe
   $result = Start-Process -FilePath $installer -ArgumentList @('/S', ('/D=' + $destination)) -Wait -PassThru
   if ($result.ExitCode -ne 0) {{ throw ('Installer failed: ' + $result.ExitCode) }}
@@ -575,10 +580,10 @@ mod tests {
         assert!(script.contains("Player''s PC"));
         assert!(
             script.find("while (Get-Process -Id 1234").unwrap()
-                < script.find("Get-FileHash").unwrap()
+                < script.find("ComputeHash").unwrap()
         );
         assert!(
-            script.find("Get-FileHash").unwrap() < script.find("$result = Start-Process").unwrap()
+            script.find("ComputeHash").unwrap() < script.find("$result = Start-Process").unwrap()
         );
         assert!(script.contains("('/D=' + $destination)"));
     }

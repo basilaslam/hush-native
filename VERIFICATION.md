@@ -2,7 +2,7 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
-## Configurable rooms and GitHub updates — v0.4.0
+## Configurable rooms and GitHub updates — v0.4.1
 
 - Local release Clippy, formatting and TypeScript/server builds passed. Fourteen native tests passed, including real Opus decoding across all 31 remote-stream slots, old-preference defaults, update version/channel selection, downgrade rejection, metadata bounds, asset URL/digest validation and checksum matching.
 - Sixteen Node/service/deployment tests passed locally; the Windows native executable/Cloudflare integration case is skipped on macOS and runs in Windows CI. Added tests cover concurrent admission above six, exact selected capacity, invalid capacity, preventing joiners from enlarging rooms and requiring current clients for larger rooms.
