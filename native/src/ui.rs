@@ -754,11 +754,11 @@ impl HushApp {
             );
             ui.checkbox(&mut self.draft.push_to_talk, "Push to talk");
             label(ui, "Keyboard shortcut");
-            ui.horizontal(|ui| {
-                ui.add_enabled(
-                    !self.recording_shortcut,
-                    text_field(&mut self.draft.ptt_shortcut, "F8 or Ctrl+Shift+V", 60),
-                );
+            ui.add_enabled(
+                !self.recording_shortcut,
+                text_field(&mut self.draft.ptt_shortcut, "F8 or Ctrl+Shift+V", 60),
+            );
+            ui.horizontal_wrapped(|ui| {
                 if ui
                     .button(if self.recording_shortcut {
                         "Cancel recording"
