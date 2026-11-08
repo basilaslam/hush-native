@@ -57,10 +57,17 @@ jobs:
       - run: cargo build --locked --release -p hush-native
       - name: Test real Windows tray event loop and hidden CPU usage
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Test-only software OpenGL, kept outside every shipping package.
-          $archive = "$env:RUNNER_TEMP/mesa.7z"
-          curl.exe --fail --location --retry 5 --retry-delay 2 --retry-all-errors --output $archive 'https://github.com/pal1000/mesa-dist-win/releases/download/25.3.5/mesa3d-25.3.5-release-msvc.7z'
+          $download = New-Item -ItemType Directory "$env:RUNNER_TEMP/mesa download" -Force
+          $archive = "$download/mesa3d-25.3.5-release-msvc.7z"
+          for ($attempt = 0; $attempt -lt 3; $attempt++) {
+            gh release download 25.3.5 --repo pal1000/mesa-dist-win --pattern mesa3d-25.3.5-release-msvc.7z --dir $download --clobber
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds 2
+          }
           if ($LASTEXITCODE -ne 0) { throw 'Mesa test dependency download failed after retries' }
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne '066f64549ac122bfad4d68c2c4ec9b0018d025a1af7fa61654d3ccbc5e933388') { throw 'Mesa test dependency checksum mismatch' }
           $mesa = "$env:RUNNER_TEMP/mesa"
@@ -73,18 +80,8 @@ jobs:
           if (-not $probe.WaitForExit(40000)) { Stop-Process -Id $probe.Id; throw 'Tray event loop did not exit after native Quit' }
           Get-Content 'desktop-test.stdout.log', 'desktop-test.stderr.log'
           if ($probe.ExitCode -ne 0) { throw 'Real tray event-loop/hidden-CPU check failed' }
-      - name: Verify binary-served GitHub checksum metadata
-        shell: pwsh
-        run: |
-          $decoded = $false
-          for ($attempt = 0; $attempt -lt 3; $attempt++) {
-            $oldRelease = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','scripts/setup-server.ps1','-UseLocalNode','-Release','v0.4.1','-DryRun') -Wait -PassThru -RedirectStandardOutput 'old-release.stdout.log' -RedirectStandardError 'old-release.stderr.log'
-            $detail = Get-Content old-release.stderr.log -Raw
-            if ($oldRelease.ExitCode -ne 0 -and $detail -match 'Missing or ambiguous checksum') { $decoded = $true; break }
-            Get-Content 'old-release.stdout.log', 'old-release.stderr.log'
-            Start-Sleep -Seconds 2
-          }
-          if (-not $decoded) { throw 'Binary-served GitHub checksum metadata was not decoded correctly' }
+      - name: Verify PowerShell reads binary-served checksum metadata
+        run: node scripts/check-setup-text.mjs
       - run: npm test
       - name: Verify no separate Microsoft C runtime is required
         shell: pwsh
