@@ -40,7 +40,7 @@ test('terminal setup uses the selected account, preserves the server on rerun an
    commands.push(args);
    if(args[0]==='auth' && args[1]==='activate') return {code:signedIn?0:1,stdout:'',stderr:''};
    if(args[0]==='auth' && args[1]==='create') {signedIn=true;return {code:0,stdout:'',stderr:''}};
-   if(args[0]==='whoami') return {code:0,stdout:JSON.stringify({accounts:[account]}),stderr:''};
+   if(args[0]==='whoami') {assert.deepEqual(args,['whoami','--json']);return {code:0,stdout:JSON.stringify({accounts:[account]}),stderr:''}};
    if(args[0]==='deploy') {config=JSON.parse(await readFile(args[args.indexOf('--config')+1],'utf8'));return {code:0,stdout:`https://${config.name}.owner.workers.dev`,stderr:''}};
    throw Error('Unexpected command');
   };

@@ -140,13 +140,13 @@ export async function runSetup(opts, {
   }
   status('[2/5] Signing in with the official Cloudflare CLI…'); await keyring(root);
   const activated = await wrangler(['auth','activate','hush-native',opts.stateDir]);
-  let who = activated.code === 0 ? await wrangler(['whoami','--json','--profile','hush-native']) : {code:1};
+  let who = activated.code === 0 ? await wrangler(['whoami','--json']) : {code:1};
   if (who.code !== 0) {
     status('Approve the Cloudflare browser sign-in. Credentials remain in your secure local Wrangler profile.');
     const login = await wrangler(['auth','create','hush-native','--scopes',...OAUTH_SCOPES],{inherit:true,timeout:360000});
     if (login.code !== 0) throw Error(errorMessage(login));
     if ((await wrangler(['auth','activate','hush-native',opts.stateDir])).code !== 0) throw Error('Could not activate the Hush sign-in profile.');
-    who = await wrangler(['whoami','--json','--profile','hush-native']);
+    who = await wrangler(['whoami','--json']);
   }
   if (who.code !== 0) throw Error(errorMessage(who));
   const start = who.stdout.indexOf('{'), end = who.stdout.lastIndexOf('}');

@@ -1,4 +1,4 @@
-# Current implementation (v0.5.1)
+# Current implementation (v0.5.2)
 
 The native app is a small standalone Rust client. The host runs the separate setup-server PowerShell or Bash script from GitHub; it installs host-only tooling, signs in to Cloudflare through official Wrangler, deploys a Worker/SQLite Durable Objects and prints its verified address. Friends paste that address into Settings and use a room invitation. GitHub distributes setup and updates; Cloudflare runs coordination. Deployment tools are not bundled in desktop downloads.
 
