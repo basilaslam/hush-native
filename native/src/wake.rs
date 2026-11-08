@@ -37,7 +37,7 @@ impl Wake {
     pub fn force(&self) {
         self.ctx.request_repaint();
         #[cfg(windows)]
-        if !self.visible.load(Ordering::Acquire) {
+        {
             use windows_sys::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_PAINT};
             let window = self.window.load(Ordering::Acquire);
             if window != 0 {

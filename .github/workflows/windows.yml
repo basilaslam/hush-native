@@ -51,8 +51,6 @@ jobs:
           $env:HUSH_SETUP_HOME = "$env:RUNNER_TEMP/hush bootstrap tools"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-server.ps1 -UseLocalNode -BootstrapOnly
           if ($LASTEXITCODE -ne 0) { throw 'Windows host runtime bootstrap failed' }
-          $oldRelease = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','scripts/setup-server.ps1','-UseLocalNode','-Release','v0.4.1','-DryRun') -Wait -PassThru -RedirectStandardOutput 'old-release.stdout.log' -RedirectStandardError 'old-release.stderr.log'
-          if ($oldRelease.ExitCode -eq 0 -or (Get-Content old-release.stderr.log -Raw) -notmatch 'Missing or ambiguous checksum') { throw 'Binary-served GitHub checksum metadata was not decoded correctly' }
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked -p hush-native --all-targets -- -D warnings
       - run: cargo test --locked -p hush-native
@@ -74,6 +72,18 @@ jobs:
           if (-not $probe.WaitForExit(40000)) { Stop-Process -Id $probe.Id; throw 'Tray event loop did not exit after native Quit' }
           Get-Content 'desktop-test.stdout.log', 'desktop-test.stderr.log'
           if ($probe.ExitCode -ne 0) { throw 'Real tray event-loop/hidden-CPU check failed' }
+      - name: Verify binary-served GitHub checksum metadata
+        shell: pwsh
+        run: |
+          $decoded = $false
+          for ($attempt = 0; $attempt -lt 3; $attempt++) {
+            $oldRelease = Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','scripts/setup-server.ps1','-UseLocalNode','-Release','v0.4.1','-DryRun') -Wait -PassThru -RedirectStandardOutput 'old-release.stdout.log' -RedirectStandardError 'old-release.stderr.log'
+            $detail = Get-Content old-release.stderr.log -Raw
+            if ($oldRelease.ExitCode -ne 0 -and $detail -match 'Missing or ambiguous checksum') { $decoded = $true; break }
+            Get-Content 'old-release.stdout.log', 'old-release.stderr.log'
+            Start-Sleep -Seconds 2
+          }
+          if (-not $decoded) { throw 'Binary-served GitHub checksum metadata was not decoded correctly' }
       - run: npm test
       - name: Verify no separate Microsoft C runtime is required
         shell: pwsh

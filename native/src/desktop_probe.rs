@@ -12,7 +12,10 @@ use std::{
 use windows_sys::Win32::{
     Foundation::FILETIME,
     System::Threading::{GetCurrentProcess, GetProcessTimes},
-    UI::WindowsAndMessaging::{IsWindowVisible, PostMessageW, SendMessageW, WM_CLOSE, WM_COMMAND},
+    UI::WindowsAndMessaging::{
+        IsIconic, IsWindowVisible, PostMessageW, SendMessageW, SC_MINIMIZE, WM_CLOSE, WM_COMMAND,
+        WM_SYSCOMMAND,
+    },
 };
 
 type Outcome = Arc<Mutex<Option<Result<String, String>>>>;
@@ -65,6 +68,18 @@ impl Probe {
             let result = (|| -> anyhow::Result<String> {
                 sleep(1500);
                 anyhow::ensure!(observed.load(Ordering::Relaxed) > 0, "GUI never rendered");
+                unsafe { PostMessageW(window as _, WM_SYSCOMMAND, SC_MINIMIZE as usize, 0); }
+                sleep(500);
+                anyhow::ensure!(unsafe { IsIconic(window as _) } != 0, "Window did not minimize");
+                let minimized_before = observed.load(Ordering::Relaxed);
+                let minimized_cpu = cpu_time();
+                for _ in 0..10_000 { wake.request_repaint(); }
+                sleep(1000);
+                anyhow::ensure!(observed.load(Ordering::Relaxed) - minimized_before <= 2, "Minimized renderer kept running");
+                anyhow::ensure!((cpu_time() - minimized_cpu) / 10_000 < 250, "Minimized loop did not sleep");
+                click(0);
+                sleep(700);
+                anyhow::ensure!(unsafe { IsIconic(window as _) } == 0, "Tray Show did not unminimize");
                 unsafe { PostMessageW(window as _, WM_CLOSE, 0, 0); }
                 sleep(700);
                 anyhow::ensure!(unsafe { IsWindowVisible(window as _) } == 0, "Close did not hide the window");
