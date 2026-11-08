@@ -27,7 +27,7 @@ impl Coordinator {
             .json(body)
             .send()
             .await
-            .context("Could not reach Vercel. Check your server address and network")?;
+            .context("Could not reach your room server. Check its address and your network")?;
         let status = response.status();
         let length = response.content_length().unwrap_or(0);
         if length > 64_000 {

@@ -18,3 +18,9 @@ artifacts/
 # Local agent and development state
 graft/
 .impeccable/
+
+# Generated Cloudflare deploy payload and local Worker state
+deployment/node.exe
+deployment/worker.mjs
+deployment/node_modules/
+cloudflare/.wrangler/

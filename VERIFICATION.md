@@ -45,3 +45,24 @@ cargo build --release --locked -p hush-native
 ```
 
 Keep `npm run dev` running, then execute `target/release/hush-native --self-test` (append `.exe` on Windows) for the local native end-to-end test. The self-test creates disposable local room metadata and uses synthetic input only.
+
+## Windows form refresh — local v0.2.2 (8 November 2026)
+
+- Built an optimized Windows x64 application locally using Rust 1.99.1 and Visual Studio 2022 C++ Build Tools. Installed the generated per-user NSIS package and checked that the installed executable matches the local build byte-for-byte.
+- Seven native tests and five room-service tests passed. TypeScript checking and service bundling passed. Release Clippy with all targets and warnings denied passed, as did Rust formatting.
+- The native self-test authenticated two local QUIC peers, exchanged and decoded 12 synthetic Opus frames, exchanged reliable chat, left the room and rejected the expired membership token. The log contains an older hardcoded “this Mac” phrase; this run was on Windows and that phrase is not a platform measurement.
+- The installed native microphone test started successfully, displayed a live input level and stopped cleanly. This confirms device initialization and capture; no subjective playback quality or acoustic processing claim is made.
+- Reviewed the lobby, settings cards, focused fields, invitation modal, connection/help pages, normal window and compact window. The application pins its dark theme, uses shared padded fields, measures icon/label spacing, constrains cards to the available panel and preserves independent scroll positions per page.
+- Production coordination, internet calls between separate routers, global F8 inside games, multiple-monitor/DPI combinations and game-performance benchmarks remain outside these local checks. No cloud deployment or router/firewall configuration was changed.
+
+## Cloudflare deployment — local v0.3.0 (8 November 2026)
+
+- Added the installed Windows Deploy server flow, browser OAuth through official Wrangler, a dedicated encrypted credential profile, account selection, automatic Worker deployment, health/identity validation and saving the verified server address.
+- Eight Rust tests passed. Release build, formatting, Clippy across all targets with warnings denied, root TypeScript and Cloudflare Worker type checks passed.
+- Cloudflare runtime tests exercise room admission/authentication, concurrent six-person capacity, expiry/leave behavior, malformed requests and per-IP admission limits. The native executable also authenticates QUIC peers and exchanges synthetic Opus audio and chat using that local Worker for coordination.
+- Deployment helper tests validate URL filtering, deployment identity/protocol checks, redirect rejection, OAuth scope compatibility with the bundled CLI and Windows configuration resolution when APPDATA is absent.
+- Built and installed the v0.3.0 Windows application and bundled Node/Wrangler payload. Actual browser OAuth testing caught and fixed explicit offline_access scope rejection and Windows APPDATA fallback for the secure keyring module. Credentials never fell back to plaintext.
+- Live cloud deployment is being verified after user browser consent; its result is recorded below when available. Cross-router physical calls, gaming performance and multi-device audio remain unverified.
+
+- Final result: all 14 Node/service/deployment tests and 8 Rust tests passed (22 total). Browser consent completed, encrypted credentials were saved, and the installed button deployed a live Cloudflare Worker. Its `/health` endpoint matched the expected application, protocol and deployment nonce. Hush populated and saved the server address automatically.
+- The installed Windows executable passed its native end-to-end self-test against that live Worker: real room creation/join, certificate-based QUIC authentication, 12 synthetic Opus frames decoded, reliable chat and leave/membership checks. This uses two peers on this PC and does not establish cross-router connectivity.

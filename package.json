@@ -1,22 +1,25 @@
 {
   "name": "hush-native-coordination",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx scripts/dev-server.ts",
     "build": "tsc --noEmit && node scripts/build-server.mjs",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "node --import tsx --test tests/native-rooms.test.ts tests/cloudflare.test.ts tests/deployment.test.mjs",
     "native:dev": "node scripts/cargo.mjs run -p hush-native",
     "native:build": "node scripts/cargo.mjs build --release --locked -p hush-native",
     "native:test": "node scripts/cargo.mjs test --locked -p hush-native",
     "native:check": "node scripts/cargo.mjs clippy --locked -p hush-native --all-targets -- -D warnings",
-    "format": "node scripts/cargo.mjs fmt --all && prettier --write server api tests scripts/*.*s"
+    "format": "node scripts/cargo.mjs fmt --all && prettier --write server api tests scripts/*.*s",
+    "cloudflare:build": "node scripts/build-cloudflare.mjs",
+    "cloudflare:test": "tsx --test tests/cloudflare.test.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261108.1",
     "@types/node": "^22.0.0",
     "prettier": "^3.9.10",
     "tsx": "^4.19.0",

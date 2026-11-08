@@ -6,6 +6,7 @@ mod audio;
 mod brand;
 mod config;
 mod coordination;
+mod deploy;
 mod engine;
 mod integration;
 mod model;
@@ -25,6 +26,7 @@ fn main() -> eframe::Result {
             .with_icon(brand::window_icon())
             .with_inner_size([1300., 880.])
             .with_min_inner_size([500., 650.]),
+        centered: true,
         renderer: eframe::Renderer::Glow,
         vsync: true,
         ..Default::default()

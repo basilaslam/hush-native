@@ -1,3 +1,11 @@
+# Current implementation (v0.3.0)
+
+Cloudflare coordination and the Windows in-app Deploy server flow are now implemented. The host signs in through the official Wrangler browser flow; Hush deploys a Worker with SQLite Durable Objects, verifies it and saves the address. Each friend still needs the same server address and room invitation.
+
+The networking roadmap below contains proposals: WebSocket coordination, ICE/STUN and TURN relay fallback are not implemented. Current audio and chat use direct encrypted QUIC, with UPnP or manual UDP port forwarding where needed. Cloudflare deployment alone does not solve restricted NAT connectivity.
+
+---
+
 # Hosting Hush for a private squad
 
 Recommendation checked on 8 November 2026. This is a proposed next architecture. The current Windows preview still uses Vercel coordination and direct QUIC; it does not implement Cloudflare, ICE or TURN.

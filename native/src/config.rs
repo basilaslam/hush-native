@@ -60,7 +60,7 @@ impl Config {
     }
     pub fn validate(&self) -> Result<()> {
         let url = url::Url::parse(self.server.trim())
-            .context("Set your Vercel HTTPS address in Settings first")?;
+            .context("Deploy a server or set its HTTPS address in Settings first")?;
         let local = url
             .host_str()
             .is_some_and(|host| matches!(host, "localhost" | "127.0.0.1" | "[::1]"));

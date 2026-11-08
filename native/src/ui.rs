@@ -19,7 +19,8 @@ use std::{
 const BG: Color32 = Color32::from_rgb(22, 28, 25);
 const SIDE: Color32 = Color32::from_rgb(27, 35, 30);
 const PANEL: Color32 = Color32::from_rgb(39, 51, 42);
-const LINE: Color32 = Color32::from_rgb(49, 63, 51);
+const LINE: Color32 = Color32::from_rgb(63, 79, 66);
+const FIELD: Color32 = Color32::from_rgb(32, 44, 36);
 const TEXT: Color32 = Color32::from_rgb(232, 236, 229);
 const MUTED: Color32 = Color32::from_rgb(163, 180, 155);
 const GREEN: Color32 = Color32::from_rgb(195, 230, 163);
@@ -205,27 +206,109 @@ fn logo(painter: &egui::Painter, rect: Rect) {
         Color32::WHITE,
     );
 }
-fn action(ui: &mut egui::Ui, label: &str, kind: Icon, primary: bool) -> egui::Response {
+fn icon_text_button(
+    ui: &mut egui::Ui,
+    label: &str,
+    kind: Icon,
+    fill: Color32,
+    foreground: Color32,
+    full_width: bool,
+) -> egui::Response {
+    let font = FontId::proportional(13.);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.to_owned(), font, foreground);
+    let width = if full_width {
+        ui.available_width()
+    } else {
+        galley.size().x + 58.
+    };
     let response = ui.add(
-        egui::Button::new(
-            RichText::new(format!("      {label}"))
-                .size(13.)
-                .color(if primary { INK } else { TEXT }),
-        )
-        .fill(if primary { GREEN } else { PANEL })
-        .min_size(Vec2::new(0., 42.))
-        .corner_radius(8.),
+        egui::Button::new("")
+            .fill(fill)
+            .stroke(Stroke::new(
+                1.0_f32,
+                if fill == GREEN { GREEN } else { LINE },
+            ))
+            .min_size(Vec2::new(width.min(ui.available_width()), 44.))
+            .corner_radius(9.),
     );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
+    });
+    if response.hovered() || response.has_focus() {
+        ui.painter().rect_stroke(
+            response.rect,
+            9.,
+            Stroke::new(1.0_f32, GREEN),
+            egui::StrokeKind::Inside,
+        );
+    }
     icon(
         ui.painter(),
         Rect::from_center_size(
-            Pos2::new(response.rect.left() + 19., response.rect.center().y),
+            Pos2::new(response.rect.left() + 21., response.rect.center().y),
             Vec2::splat(17.),
         ),
         kind,
-        if primary { INK } else { GREEN },
+        foreground,
     );
+    let text_rect = Rect::from_min_max(
+        Pos2::new(response.rect.left() + 40., response.rect.top()),
+        Pos2::new(response.rect.right() - 12., response.rect.bottom()),
+    );
+    ui.painter()
+        .with_clip_rect(text_rect.intersect(ui.clip_rect()))
+        .galley(
+            Pos2::new(
+                text_rect.left(),
+                response.rect.center().y - galley.size().y / 2.,
+            ),
+            galley,
+            foreground,
+        );
     response
+}
+fn action(ui: &mut egui::Ui, label: &str, kind: Icon, primary: bool) -> egui::Response {
+    icon_text_button(
+        ui,
+        label,
+        kind,
+        if primary { GREEN } else { PANEL },
+        if primary { INK } else { TEXT },
+        false,
+    )
+}
+fn text_field<'a>(value: &'a mut String, hint: &str, limit: usize) -> egui::TextEdit<'a> {
+    egui::TextEdit::singleline(value)
+        .hint_text(RichText::new(hint).color(MUTED))
+        .char_limit(limit)
+        .text_color(TEXT)
+        .background_color(FIELD)
+        .margin(Margin::symmetric(12, 11))
+        .min_size(Vec2::new(0., 42.))
+        .desired_width(f32::INFINITY)
+}
+fn form_card(ui: &mut egui::Ui, content: impl FnOnce(&mut egui::Ui)) {
+    Frame::new()
+        .fill(SIDE)
+        .stroke(Stroke::new(1.0_f32, LINE))
+        .corner_radius(14.)
+        .inner_margin(Margin::same(18))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            content(ui);
+        });
+}
+fn section_heading(ui: &mut egui::Ui, name: &str, description: &str, kind: Icon) {
+    ui.horizontal(|ui| {
+        let (rect, _) = ui.allocate_exact_size(Vec2::splat(20.), Sense::hover());
+        icon(ui.painter(), rect, kind, GREEN);
+        title(ui, name, 17.);
+    });
+    ui.add_space(3.);
+    small(ui, description);
+    ui.add_space(15.);
 }
 fn icon_button(ui: &mut egui::Ui, label: &str, kind: Icon, selected: bool) -> egui::Response {
     let response = ui.add(
@@ -250,10 +333,10 @@ fn icon_button(ui: &mut egui::Ui, label: &str, kind: Icon, selected: bool) -> eg
     response.on_hover_text(label)
 }
 fn small(ui: &mut egui::Ui, text: impl Into<String>) {
-    ui.label(RichText::new(text).size(12.).color(MUTED));
+    ui.label(RichText::new(text).size(13.).color(MUTED));
 }
 fn label(ui: &mut egui::Ui, text: &str) {
-    ui.label(RichText::new(text).size(12.).color(MUTED));
+    ui.label(RichText::new(text).size(13.).color(TEXT));
     ui.add_space(5.);
 }
 fn title(ui: &mut egui::Ui, text: &str, size: f32) {
@@ -280,6 +363,7 @@ enum Modal {
 }
 pub struct HushApp {
     engine: Controller,
+    deployment: crate::deploy::Deployment,
     config: Config,
     draft: Config,
     page: Page,
@@ -321,6 +405,8 @@ impl HushApp {
             vec!["HushDisplay".into(), "Manrope".into()],
         );
         ctx.set_fonts(fonts);
+        // Hush has one authored palette, independent of the Windows theme.
+        ctx.set_theme(egui::Theme::Dark);
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = BG;
         visuals.window_fill = SIDE;
@@ -336,11 +422,30 @@ impl HushApp {
         visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(49, 65, 50);
         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0_f32, GREEN);
         visuals.widgets.active.bg_fill = Color32::from_rgb(61, 79, 54);
-        ctx.set_visuals(visuals);
+        visuals.weak_text_color = Some(MUTED);
+        visuals.text_edit_bg_color = Some(FIELD);
+        visuals.hyperlink_color = GREEN;
+        visuals.window_stroke = Stroke::new(1.0_f32, LINE);
+        visuals.window_corner_radius = CornerRadius::same(14);
+        visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, TEXT);
+        visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, LINE);
+        visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, TEXT);
+        visuals.widgets.hovered.fg_stroke = Stroke::new(1.0_f32, TEXT);
+        visuals.widgets.active.fg_stroke = Stroke::new(1.0_f32, GREEN);
+        visuals.widgets.inactive.corner_radius = CornerRadius::same(8);
+        visuals.widgets.hovered.corner_radius = CornerRadius::same(8);
+        visuals.widgets.active.corner_radius = CornerRadius::same(8);
+        visuals.widgets.open.corner_radius = CornerRadius::same(8);
+        visuals.widgets.open.bg_fill = FIELD;
+        visuals.widgets.open.weak_bg_fill = FIELD;
+        visuals.widgets.open.fg_stroke = Stroke::new(1.0_f32, TEXT);
+        ctx.set_visuals_of(egui::Theme::Dark, visuals);
         ctx.style_mut(|style| {
             style.spacing.item_spacing = Vec2::new(10., 9.);
             style.spacing.button_padding = Vec2::new(15., 9.);
-            style.spacing.interact_size = Vec2::new(40., 36.);
+            style.spacing.interact_size = Vec2::new(40., 42.);
+            style.spacing.combo_height = 240.;
+            style.spacing.slider_width = 115.;
             style.animation_time = 0.;
             style
                 .text_styles
@@ -363,6 +468,7 @@ impl HushApp {
         let hotkey = GlobalHotKeyManager::new().ok();
         Ok(Self {
             engine,
+            deployment: crate::deploy::Deployment::default(),
             draft: config.clone(),
             config,
             page: Page::Room,
@@ -388,6 +494,11 @@ impl HushApp {
         self.engine.state.lock().unwrap().notice = "Settings saved on this device.".into();
     }
     fn begin(&mut self, invitation: Option<String>) {
+        if self.deployment.snapshot().running {
+            self.engine.state.lock().unwrap().error =
+                "Finish or cancel server setup before joining a room.".into();
+            return;
+        }
         if let Err(error) = self.config.validate() {
             self.engine.state.lock().unwrap().error = error.to_string();
             if self.config.server.trim().is_empty() {
@@ -426,75 +537,275 @@ impl HushApp {
         }
     }
     fn settings(&mut self, ui: &mut egui::Ui, state: &ViewState) {
+        ui.set_max_width(ui.available_width().min(820.));
         title(ui, "Sound like yourself.", 32.);
-        small(ui, "Native audio, tuned for your next session.");
-        ui.add_space(26.);
-        let locked = state.session.is_some() || state.busy || state.testing;
-        ui.add_enabled_ui(!locked,|ui|{
-            label(ui,"Vercel coordination address");ui.add(egui::TextEdit::singleline(&mut self.draft.server).hint_text("https://your-app.vercel.app").desired_width(f32::INFINITY));small(ui,"Only the server origin. For local development: http://127.0.0.1:5173");ui.add_space(14.);
-            ui.columns(2,|columns|{label(&mut columns[0],"Your name");columns[0].add(egui::TextEdit::singleline(&mut self.draft.name).char_limit(24).desired_width(f32::INFINITY));label(&mut columns[1],"Voice quality per peer");egui::ComboBox::from_id_salt("bitrate").selected_text(format!("{} kbps",self.draft.bitrate/1000)).width(160.).show_ui(&mut columns[1],|ui|{for bitrate in[24000,32000,64000]{ui.selectable_value(&mut self.draft.bitrate,bitrate,format!("{} kbps",bitrate/1000));}});});
-            ui.add_space(12.);ui.columns(2,|columns|{label(&mut columns[0],"Microphone");egui::ComboBox::from_id_salt("input").selected_text(if self.draft.input.is_empty(){"System default"}else{&self.draft.input}).width(190.).show_ui(&mut columns[0],|ui|{ui.selectable_value(&mut self.draft.input,String::new(),"System default");for name in &self.inputs{ui.selectable_value(&mut self.draft.input,name.clone(),name);}});label(&mut columns[1],"Playback");egui::ComboBox::from_id_salt("output").selected_text(if self.draft.output.is_empty(){"System default"}else{&self.draft.output}).width(190.).show_ui(&mut columns[1],|ui|{ui.selectable_value(&mut self.draft.output,String::new(),"System default");for name in &self.outputs{ui.selectable_value(&mut self.draft.output,name.clone(),name);}});});
-            if ui.small_button("Refresh audio devices").clicked(){self.inputs=audio::devices(true);self.outputs=audio::devices(false);}ui.add_space(15.);
-            ui.columns(2,|columns|{label(&mut columns[0],"Listening UDP port");columns[0].add(egui::DragValue::new(&mut self.draft.port).range(1024..=65535));label(&mut columns[1],"Public UDP address (optional)");columns[1].add(egui::TextEdit::singleline(&mut self.draft.public_address).hint_text("203.0.113.1:41642").desired_width(f32::INFINITY));});
-            ui.checkbox(&mut self.draft.auto_map,"Try automatic router port mapping (UPnP)").on_hover_text("Opens a temporary UDP mapping on your router for the active room, renews it during long sessions, and removes it when leaving.");
-        });
-        if locked {
-            small(ui,"Leave the room and stop the microphone test to change devices or network settings.");
-        }
-        ui.add_space(16.);
-        ui.separator();
-        ui.add_space(14.);
-        ui.columns(2, |columns| {
-            label(&mut columns[0], "Microphone gain");
-            columns[0].add(egui::Slider::new(&mut self.draft.input_gain, 0.0..=2.0).suffix("×"));
-            label(&mut columns[1], "Playback volume");
-            columns[1].add(egui::Slider::new(&mut self.draft.output_volume, 0.0..=1.5).suffix("×"));
-        });
-        ui.add_space(12.);
-        ui.checkbox(&mut self.draft.push_to_talk, "Push to talk · global F8");
-        small(ui,"F8 is reserved only during a call. The hold-to-talk button also works without a global shortcut.");
-        ui.checkbox(
-            &mut self.draft.quiet,
-            "Gaming mode · stop microphone meter repaints",
-        );
-        ui.add_space(18.);
-        ui.horizontal(|ui| {
-            ui.add_enabled_ui(!state.busy && state.session.is_none(), |ui| {
-                if action(
-                    ui,
-                    if state.testing {
-                        "Stop microphone test"
-                    } else {
-                        "Test microphone"
-                    },
-                    Icon::Mic,
-                    false,
-                )
-                .clicked()
-                {
-                    if state.testing {
-                        self.engine.send(Command::StopTest);
-                    } else {
-                        self.engine.configure(&self.draft);
-                        self.engine.send(Command::Test(self.draft.clone()));
+        small(ui, "A few thoughtful settings. A better session.");
+        ui.add_space(24.);
+        let deployment = self.deployment.snapshot();
+        let locked = state.session.is_some() || state.busy || state.testing || deployment.running;
+        form_card(ui, |ui| {
+            section_heading(
+                ui,
+                "Host your squad",
+                "Your own room server, set up in a few clicks.",
+                Icon::Signal,
+            );
+            small(ui, "Sign in to Cloudflare in your browser. Hush deploys the server and fills in its address for you.");
+            ui.add_space(12.);
+            if deployment.running {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(RichText::new(&deployment.message).color(TEXT));
+                });
+                if !deployment.accounts.is_empty() {
+                    ui.add_space(10.);
+                    label(ui, "Cloudflare account");
+                    let mut selected = deployment.selected;
+                    egui::ComboBox::from_id_salt("cloudflare_account")
+                        .selected_text(
+                            deployment
+                                .accounts
+                                .get(selected)
+                                .map_or("Choose an account", |account| account.name.as_str()),
+                        )
+                        .width(ui.available_width())
+                        .truncate()
+                        .show_ui(ui, |ui| {
+                            for (index, account) in deployment.accounts.iter().enumerate() {
+                                ui.selectable_value(&mut selected, index, &account.name);
+                            }
+                        });
+                    self.deployment.select(selected);
+                    if action(ui, "Use this account", Icon::Arrow, true).clicked() {
+                        self.deployment.use_account();
                     }
                 }
-            });
-            if action(ui, "Save settings", Icon::Settings, true).clicked() {
-                self.save();
+                ui.add_space(10.);
+                if action(ui, "Cancel deployment", Icon::Close, false).clicked() {
+                    self.deployment.cancel();
+                }
+            } else {
+                ui.add_enabled_ui(
+                    state.session.is_none()
+                        && !state.busy
+                        && !state.testing
+                        && !self.deployment.snapshot().running,
+                    |ui| {
+                        if action(ui, "Deploy server", Icon::Plus, true).clicked() {
+                            self.deployment.start(ui.ctx().clone());
+                        }
+                    },
+                );
+                if !deployment.message.is_empty() {
+                    ui.add_space(10.);
+                    ui.label(
+                        RichText::new(&deployment.message).color(if deployment.error {
+                            RED
+                        } else {
+                            GREEN
+                        }),
+                    );
+                }
             }
+            ui.add_space(10.);
+            small(ui, "Uses your Cloudflare account and its usage limits. Voice and chat stay peer to peer.");
         });
-        if state.testing {
-            ui.add_space(12.);
-            let level = f32::from_bits(self.engine.controls.level.load(Ordering::Relaxed));
-            ui.add(
-                egui::ProgressBar::new((level * 4.).min(1.))
-                    .fill(GREEN)
-                    .text("Microphone test stays on this device"),
+        ui.add_space(16.);
+        form_card(ui, |ui| {
+            section_heading(
+                ui,
+                "Your home base",
+                "Choose your name and the server your squad uses.",
+                Icon::Leaf,
             );
+            ui.add_enabled_ui(!locked, |ui| {
+                label(ui, "Coordination server");
+                ui.add(text_field(
+                    &mut self.draft.server,
+                    "https://your-server.workers.dev",
+                    2048,
+                ));
+                small(
+                    ui,
+                    "Deploy above, or use an existing Cloudflare or Vercel server address.",
+                );
+                ui.add_space(12.);
+                label(ui, "Your display name");
+                ui.add(text_field(
+                    &mut self.draft.name,
+                    "What should your friends call you?",
+                    24,
+                ));
+            });
+        });
+        ui.add_space(16.);
+        form_card(ui, |ui| {
+            section_heading(
+                ui,
+                "Make yourself heard",
+                "Pick your devices and find a comfortable level.",
+                Icon::Headphones,
+            );
+            ui.add_enabled_ui(!locked, |ui| {
+                ui.columns(2, |columns| {
+                    label(&mut columns[0], "Microphone");
+                    egui::ComboBox::from_id_salt("input")
+                        .selected_text(if self.draft.input.is_empty() {
+                            "System default"
+                        } else {
+                            &self.draft.input
+                        })
+                        .width(columns[0].available_width())
+                        .truncate()
+                        .show_ui(&mut columns[0], |ui| {
+                            ui.selectable_value(
+                                &mut self.draft.input,
+                                String::new(),
+                                "System default",
+                            );
+                            for name in &self.inputs {
+                                ui.selectable_value(&mut self.draft.input, name.clone(), name);
+                            }
+                        });
+                    label(&mut columns[1], "Playback");
+                    egui::ComboBox::from_id_salt("output")
+                        .selected_text(if self.draft.output.is_empty() {
+                            "System default"
+                        } else {
+                            &self.draft.output
+                        })
+                        .width(columns[1].available_width())
+                        .truncate()
+                        .show_ui(&mut columns[1], |ui| {
+                            ui.selectable_value(
+                                &mut self.draft.output,
+                                String::new(),
+                                "System default",
+                            );
+                            for name in &self.outputs {
+                                ui.selectable_value(&mut self.draft.output, name.clone(), name);
+                            }
+                        });
+                });
+                ui.add_space(8.);
+                if action(ui, "Refresh devices", Icon::Arrow, false).clicked() {
+                    self.inputs = audio::devices(true);
+                    self.outputs = audio::devices(false);
+                }
+                ui.add_space(12.);
+                label(ui, "Voice quality per peer");
+                egui::ComboBox::from_id_salt("bitrate")
+                    .selected_text(format!("{} kbps", self.draft.bitrate / 1000))
+                    .width(ui.available_width())
+                    .truncate()
+                    .show_ui(ui, |ui| {
+                        for bitrate in [24000, 32000, 64000] {
+                            ui.selectable_value(
+                                &mut self.draft.bitrate,
+                                bitrate,
+                                format!("{} kbps", bitrate / 1000),
+                            );
+                        }
+                    });
+            });
+            ui.add_space(15.);
+            ui.columns(2, |columns| {
+                label(&mut columns[0], "Microphone gain");
+                columns[0]
+                    .add(egui::Slider::new(&mut self.draft.input_gain, 0.0..=2.0).suffix("×"));
+                label(&mut columns[1], "Playback volume");
+                columns[1]
+                    .add(egui::Slider::new(&mut self.draft.output_volume, 0.0..=1.5).suffix("×"));
+            });
+            ui.add_space(14.);
+            ui.add_enabled_ui(
+                !state.busy && state.session.is_none() && !deployment.running,
+                |ui| {
+                    if action(
+                        ui,
+                        if state.testing {
+                            "Stop microphone test"
+                        } else {
+                            "Test microphone"
+                        },
+                        Icon::Mic,
+                        false,
+                    )
+                    .clicked()
+                    {
+                        if state.testing {
+                            self.engine.send(Command::StopTest);
+                        } else {
+                            self.engine.configure(&self.draft);
+                            self.engine.send(Command::Test(self.draft.clone()));
+                        }
+                    }
+                },
+            );
+            if state.testing {
+                ui.add_space(12.);
+                let level = f32::from_bits(self.engine.controls.level.load(Ordering::Relaxed));
+                ui.add(
+                    egui::ProgressBar::new((level * 4.).min(1.))
+                        .fill(GREEN)
+                        .text("Microphone test stays on this device"),
+                );
+            }
+            ui.add_space(8.);
+            small(
+                ui,
+                "Use headphones. Echo cancellation and noise suppression are not included.",
+            );
+        });
+        ui.add_space(16.);
+        form_card(ui, |ui| {
+            section_heading(
+                ui,
+                "Your way to talk",
+                "Simple controls that keep the game in focus.",
+                Icon::Mic,
+            );
+            ui.checkbox(&mut self.draft.push_to_talk, "Push to talk · global F8");
+            small(ui, "F8 is active only during calls. The in-app hold-to-talk button is always available.");
+            ui.add_space(10.);
+            ui.checkbox(&mut self.draft.quiet, "Gaming mode");
+            small(
+                ui,
+                "Keep microphone-meter repaints off during calls for a quieter interface.",
+            );
+        });
+        ui.add_space(16.);
+        form_card(ui, |ui| {
+            section_heading(
+                ui,
+                "Direct connection",
+                "For LAN calls or a reachable internet connection.",
+                Icon::Signal,
+            );
+            ui.add_enabled_ui(!locked, |ui| {
+                ui.columns(2, |columns| {
+                    label(&mut columns[0], "Listening UDP port");
+                    columns[0].add_sized(Vec2::new(columns[0].available_width(), 42.),
+                        egui::DragValue::new(&mut self.draft.port).range(1024..=65535));
+                    label(&mut columns[1], "Public address (optional)");
+                    columns[1].add(text_field(&mut self.draft.public_address, "203.0.113.1:41642", 64));
+                });
+                ui.add_space(12.);
+                ui.checkbox(&mut self.draft.auto_map, "Automatic router mapping (UPnP)")
+                    .on_hover_text("Opens a temporary UDP mapping for the active room, renews it during long sessions, and removes it when leaving.");
+                small(ui, "No relay is available. Some carrier or restricted networks may block direct calls.");
+            });
+        });
+        if locked {
+            ui.add_space(12.);
+            small(ui, "Finish server setup, leave the room and stop the microphone test before changing connection settings.");
         }
-        ui.add_space(18.);
-        small(ui,"Use headphones. This version uses efficient Opus processing; it does not include acoustic echo cancellation or neural noise suppression.");
+        ui.add_space(20.);
+        if action(ui, "Save settings", Icon::Settings, true).clicked() {
+            self.save();
+        }
+        ui.add_space(8.);
+        small(ui, "Your preferences are saved only on this device.");
     }
     fn sidebar(&mut self, ctx: &egui::Context, state: &ViewState) {
         egui::SidePanel::left("navigation")
@@ -511,21 +822,13 @@ impl HushApp {
                     .session
                     .as_ref()
                     .map_or("The hangout", |session| session.room_name.as_str());
-                let response = ui.add(
-                    egui::Button::new(format!("      {room}"))
-                        .truncate()
-                        .fill(if self.page == Page::Room { PANEL } else { SIDE })
-                        .min_size(Vec2::new(ui.available_width(), 43.))
-                        .corner_radius(8.),
-                );
-                icon(
-                    ui.painter(),
-                    Rect::from_center_size(
-                        Pos2::new(response.rect.left() + 18., response.rect.center().y),
-                        Vec2::splat(17.),
-                    ),
+                let response = icon_text_button(
+                    ui,
+                    room,
                     Icon::Headphones,
-                    GREEN,
+                    if self.page == Page::Room { PANEL } else { SIDE },
+                    TEXT,
+                    true,
                 );
                 if response.clicked() {
                     self.page = Page::Room;
@@ -536,20 +839,13 @@ impl HushApp {
                     (Page::Help, "A little help", Icon::Chat),
                 ] {
                     let selected = self.page == page;
-                    let response = ui.add(
-                        egui::Button::new(format!("      {text}"))
-                            .fill(if selected { PANEL } else { SIDE })
-                            .min_size(Vec2::new(ui.available_width(), 41.))
-                            .corner_radius(8.),
-                    );
-                    icon(
-                        ui.painter(),
-                        Rect::from_center_size(
-                            Pos2::new(response.rect.left() + 18., response.rect.center().y),
-                            Vec2::splat(17.),
-                        ),
+                    let response = icon_text_button(
+                        ui,
+                        text,
                         kind,
-                        MUTED,
+                        if selected { PANEL } else { SIDE },
+                        TEXT,
+                        true,
                     );
                     if response.clicked() {
                         self.page = page;
@@ -740,24 +1036,37 @@ impl HushApp {
             });
     }
     fn lobby(&mut self, ui: &mut egui::Ui, state: &ViewState) {
-        title(ui, "Your people.\nYour space.", 43.);
+        let narrow = ui.available_width() < 600.;
+        title(
+            ui,
+            "Your people.\nYour space.",
+            if narrow { 36. } else { 43. },
+        );
         ui.add_space(8.);
         small(ui, "A quiet place to talk, play, and stay a little longer.");
         ui.add_space(16.);
-        let height = 130.;
+        let height = if narrow { 110. } else { 130. };
         let (rect, _) =
             ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::hover());
         let center = rect.center();
         let painter = ui.painter();
-        painter.circle_stroke(center, 70., Stroke::new(1.0_f32, LINE));
+        painter.circle_stroke(
+            center,
+            if narrow { 57. } else { 70. },
+            Stroke::new(1.0_f32, LINE),
+        );
         painter.line_segment(
             [center - Vec2::new(130., 0.), center + Vec2::new(130., 0.)],
             Stroke::new(1.0_f32, Color32::from_rgb(65, 84, 56)),
         );
         logo(painter, Rect::from_center_size(center, Vec2::splat(78.)));
         for (offset, kind, fill) in [
-            (-130., Icon::Headphones, PANEL),
-            (130., Icon::Mic, Color32::from_rgb(184, 172, 150)),
+            (if narrow { -110. } else { -130. }, Icon::Headphones, PANEL),
+            (
+                if narrow { 110. } else { 130. },
+                Icon::Mic,
+                Color32::from_rgb(184, 172, 150),
+            ),
         ] {
             let rectangle =
                 Rect::from_center_size(center + Vec2::new(offset, 0.), Vec2::splat(55.));
@@ -779,42 +1088,39 @@ impl HushApp {
             small(ui, "Just your squad, without the noise.");
             ui.add_space(21.);
             ui.scope(|ui| {
-                ui.set_max_width(375.);
-                ui.columns(2, |columns| {
-                    label(&mut columns[0], "Your name");
-                    if columns[0]
-                        .add(
-                            egui::TextEdit::singleline(&mut self.config.name)
-                                .hint_text("Your name")
-                                .char_limit(24)
-                                .desired_width(f32::INFINITY),
-                        )
-                        .changed()
-                    {
-                        self.draft.name = self.config.name.clone();
-                    }
-                    label(&mut columns[1], "Room name");
-                    if columns[1]
-                        .add(
-                            egui::TextEdit::singleline(&mut self.config.room_name)
-                                .char_limit(48)
-                                .desired_width(f32::INFINITY),
-                        )
-                        .changed()
-                    {
-                        self.draft.room_name = self.config.room_name.clone();
-                    }
-                });
-                ui.add_space(8.);
-                ui.add_enabled_ui(!state.busy && !state.testing, |ui| {
-                    ui.horizontal(|ui| {
-                        if action(ui, "Create a room", Icon::Plus, true).clicked() {
-                            let _ = self.config.save();
-                            self.begin(None);
+                ui.set_max_width(440.);
+                form_card(ui, |ui| {
+                    ui.columns(2, |columns| {
+                        label(&mut columns[0], "Your name");
+                        if columns[0]
+                            .add(text_field(&mut self.config.name, "Your name", 24))
+                            .changed()
+                        {
+                            self.draft.name = self.config.name.clone();
                         }
-                        if action(ui, "Join with an invite", Icon::Link, false).clicked() {
-                            self.modal = Some(Modal::Join);
+                        label(&mut columns[1], "Room name");
+                        if columns[1]
+                            .add(text_field(
+                                &mut self.config.room_name,
+                                "Give your room a name",
+                                48,
+                            ))
+                            .changed()
+                        {
+                            self.draft.room_name = self.config.room_name.clone();
                         }
+                    });
+                    ui.add_space(8.);
+                    ui.add_enabled_ui(!state.busy && !state.testing, |ui| {
+                        ui.horizontal(|ui| {
+                            if action(ui, "Create a room", Icon::Plus, true).clicked() {
+                                let _ = self.config.save();
+                                self.begin(None);
+                            }
+                            if action(ui, "Join with an invite", Icon::Link, false).clicked() {
+                                self.modal = Some(Modal::Join);
+                            }
+                        });
                     });
                 });
             });
@@ -837,7 +1143,7 @@ impl HushApp {
             ui.add_space(12.);
             small(
                 ui,
-                "First time here? Set your Vercel address in Voice & settings.",
+                "First time here? Deploy your server in Voice & settings.",
             );
         }
     }
@@ -977,7 +1283,7 @@ impl HushApp {
         ui.add_space(8.);
         small(
             ui,
-            "Audio stays between peers. Vercel only keeps the room connected.",
+            "Audio stays between peers. Your server only keeps the room connected.",
         );
         if !self.config.quiet {
             let level = f32::from_bits(self.engine.controls.level.load(Ordering::Relaxed));
@@ -990,6 +1296,7 @@ impl HushApp {
         }
     }
     fn diagnostics(&mut self, ui: &mut egui::Ui, state: &ViewState) {
+        ui.set_max_width(ui.available_width().min(820.));
         title(ui, "A clearer connection.", 32.);
         small(ui, "Real measurements from your native peer connections.");
         ui.add_space(25.);
@@ -1072,12 +1379,13 @@ impl HushApp {
         ui.add_space(18.);
         small(ui,"Sampled every two seconds. Loss is a cumulative sequence-gap estimate and can decrease when reordered packets arrive. Network round trip is not end-to-end voice latency.");
         ui.add_space(12.);
-        small(ui,"If direct UDP is blocked by your carrier or router, the call cannot connect in this Vercel-only design. Use a reachable network or forward the configured UDP port. No HTTP audio fallback is hidden here.");
+        small(ui,"If your carrier or router blocks direct UDP, calls may not connect. Use a reachable network or forward the configured port. Deploying a room server does not add a voice relay.");
     }
     fn help(&mut self, ui: &mut egui::Ui) {
+        ui.set_max_width(ui.available_width().min(820.));
         title(ui, "A little help, before you play.", 30.);
         ui.add_space(25.);
-        for(title_text,body)in[("Bring your people","Give yourself a name, create a room and copy its hush1 invitation. Friends paste it into Join with an invite in their native app. Web demo invitations are a different protocol."),("A small, native audio path","The microphone feeds a bounded sample ring. One worker encodes 20 ms mono Opus frames once, then shares those bytes with the squad. Incoming frames use a bounded jitter buffer and mix directly to the sound device."),("Your own home base","Set the HTTPS origin of your Vercel deployment in Settings. Attach a private Vercel Blob store. There is no Redis, third-party STUN or TURN dependency in the native app."),("Router access matters","Allow Hush on private Windows networks. Automatic UPnP opens a temporary UDP mapping only for the room. If mapping is unavailable, forward the chosen UDP port and enter the public IPv4:port. Carrier-grade NAT and some restricted networks will still block direct calls."),("Keep the game first","Gaming mode is on by default. It stops live microphone-meter repaints. F8 is registered globally only during push-to-talk calls. A game running with elevated privileges may block a shortcut; test your setup."),("Measure before promising","This is a native implementation designed for low overhead. Compare game frame times, CPU, memory and network loss on your gaming PC before claiming an improvement. No zero-FPS-loss promise is made.")]{title(ui,title_text,16.);ui.add_space(7.);ui.label(RichText::new(body).size(13.).color(MUTED));ui.add_space(23.);}
+        for(title_text,body)in[("Bring your people","Give yourself a name, create a room and copy its hush1 invitation. Friends paste it into Join with an invite in their native app. Web demo invitations are a different protocol."),("A small, native audio path","The microphone feeds a bounded sample ring. One worker encodes 20 ms mono Opus frames once, then shares those bytes with the squad. Incoming frames use a bounded jitter buffer and mix directly to the sound device."),("Your own home base","Use Deploy server in Voice & settings to sign in to Cloudflare and automatically create your room server. Its address is saved for you. Existing Vercel servers are also supported."),("Router access matters","Allow Hush on private Windows networks. Automatic UPnP opens a temporary UDP mapping only for the room. If mapping is unavailable, forward the chosen UDP port and enter the public IPv4:port. Carrier-grade NAT and some restricted networks will still block direct calls."),("Keep the game first","Gaming mode is on by default. It stops live microphone-meter repaints. F8 is registered globally only during push-to-talk calls. A game running with elevated privileges may block a shortcut; test your setup."),("Measure before promising","This is a native implementation designed for low overhead. Compare game frame times, CPU, memory and network loss on your gaming PC before claiming an improvement. No zero-FPS-loss promise is made.")]{title(ui,title_text,16.);ui.add_space(7.);ui.label(RichText::new(body).size(13.).color(MUTED));ui.add_space(23.);}
     }
     fn chat_panel(&mut self, ctx: &egui::Context, state: &ViewState) {
         egui::SidePanel::right("chat")
@@ -1093,7 +1401,7 @@ impl HushApp {
                 ui.add_space(6.);
                 small(ui, "Direct between friends.");
                 ui.add_space(18.);
-                let height = (ui.available_height() - 105.).max(80.);
+                let height = (ui.available_height() - 156.).max(80.);
                 egui::ScrollArea::vertical()
                     .max_height(height)
                     .stick_to_bottom(true)
@@ -1120,15 +1428,10 @@ impl HushApp {
                     });
                 ui.add_space(14.);
                 ui.add_enabled_ui(state.session.is_some(), |ui| {
-                    let response = ui.add(
-                        egui::TextEdit::singleline(&mut self.chat)
-                            .hint_text("Message your room…")
-                            .char_limit(500)
-                            .desired_width(f32::INFINITY),
-                    );
+                    let response = ui.add(text_field(&mut self.chat, "Message your room…", 500));
                     if ((response.lost_focus()
                         && ui.input(|input| input.key_pressed(egui::Key::Enter)))
-                        || ui.button("Send message").clicked())
+                        || action(ui, "Send message", Icon::Arrow, false).clicked())
                         && !self.chat.trim().is_empty()
                     {
                         self.engine
@@ -1137,7 +1440,7 @@ impl HushApp {
                     }
                 });
                 ui.add_space(8.);
-                small(ui, "Temporary. Never stored on Vercel.");
+                small(ui, "Temporary. Never stored on your server.");
             });
     }
 }
@@ -1160,6 +1463,16 @@ fn avatar(ui: &mut egui::Ui, name: &str, size: f32, color: Color32) {
 }
 impl eframe::App for HushApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(server) = self.deployment.take_ready() {
+            self.config.server = server.clone();
+            self.draft.server = server;
+            if let Err(error) = self.config.save() {
+                self.engine.state.lock().unwrap().error = format!("Your server is deployed, but its address could not be saved: {error}. Save it in Settings.");
+            } else {
+                self.engine.state.lock().unwrap().notice =
+                    "Your Cloudflare server is ready. Choose your name, then create a room.".into();
+            }
+        }
         let state = self.engine.state.lock().unwrap().clone();
         self.sync_hotkey(state.session.is_some());
         // The hotkey callback updates the atomic immediately, independent of UI focus.
@@ -1196,6 +1509,7 @@ impl eframe::App for HushApp {
                         }
                         if icon_button(ui, "Compact window", Icon::Monitor, false).clicked() {
                             self.compact = !self.compact;
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(false));
                             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(
                                 if self.compact {
                                     Vec2::new(520., 760.)
@@ -1204,7 +1518,7 @@ impl eframe::App for HushApp {
                                 },
                             ));
                         }
-                        if width < 850. {
+                        if width <= 850. {
                             if icon_button(ui, "Voice & settings", Icon::Settings, false).clicked()
                             {
                                 self.page = Page::Settings;
@@ -1239,6 +1553,12 @@ impl eframe::App for HushApp {
             )
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical()
+                    .id_salt(match self.page {
+                        Page::Room => "room_content",
+                        Page::Settings => "settings_content",
+                        Page::Connection => "connection_content",
+                        Page::Help => "help_content",
+                    })
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         if !state.error.is_empty() {
@@ -1277,7 +1597,38 @@ impl eframe::App for HushApp {
             });
         if let Some(kind) = self.modal.as_ref() {
             let join = *kind == Modal::Join;
-            let modal=egui::Modal::new(egui::Id::new("room_modal")).show(ctx,|ui|{ui.set_width(400f32.min((width-80.).max(240.)));title(ui,if join{"Your people are waiting."}else{"Save a seat for a friend."},24.);ui.add_space(14.);if join{label(ui,"Your name");ui.add(egui::TextEdit::singleline(&mut self.config.name).char_limit(24).desired_width(f32::INFINITY));ui.add_space(12.);label(ui,"Native room invitation");ui.add(egui::TextEdit::singleline(&mut self.invitation).hint_text("hush1.…").char_limit(100).desired_width(f32::INFINITY));ui.add_space(17.);if action(ui,"Join room & connect",Icon::Arrow,true).clicked(){self.begin(Some(self.invitation.clone()));}}else if let Some(session)=&state.session{let mut code=session.invitation();ui.add(egui::TextEdit::singleline(&mut code).desired_width(f32::INFINITY).interactive(false));ui.add_space(15.);if action(ui,"Copy invitation",Icon::Link,true).clicked(){ctx.copy_text(session.invitation());self.copied=true;}small(ui,"Paste this into the native app. Anyone with the invitation can join, up to six people.");}ui.add_space(12.);if ui.button("Close").clicked(){self.modal=None;}});
+            let modal = egui::Modal::new(egui::Id::new("room_modal"))
+                .frame(Frame::new().fill(SIDE).stroke(Stroke::new(1.0_f32, LINE))
+                    .corner_radius(16.).inner_margin(Margin::same(24)))
+                .show(ctx, |ui| {
+                ui.set_width(400f32.min((width - 80.).max(240.)));
+                ui.spacing_mut().item_spacing.y = 10.;
+                title(ui, if join { "Your people are waiting." } else { "Save a seat for a friend." }, 24.);
+                ui.add_space(4.);
+                small(ui, if join { "A name and an invitation. You’re almost there." } else { "Make a little room for your squad." });
+                ui.add_space(16.);
+                if join {
+                    label(ui, "Your name");
+                    ui.add(text_field(&mut self.config.name, "Your display name", 24));
+                    ui.add_space(8.);
+                    label(ui, "Native room invitation");
+                    ui.add(text_field(&mut self.invitation, "hush1.…", 100));
+                    ui.add_space(16.);
+                    if action(ui, "Join room & connect", Icon::Arrow, true).clicked() {
+                        self.begin(Some(self.invitation.clone()));
+                    }
+                } else if let Some(session) = &state.session {
+                    let mut code = session.invitation();
+                    ui.add(text_field(&mut code, "", 100).interactive(false));
+                    ui.add_space(12.);
+                    if action(ui, "Copy invitation", Icon::Link, true).clicked() {
+                        ctx.copy_text(session.invitation()); self.copied = true;
+                    }
+                    small(ui, "Anyone with the invitation can join, up to six people. Keep it between friends.");
+                }
+                ui.add_space(10.);
+                if action(ui, "Close", Icon::Close, false).clicked() { self.modal = None; }
+            });
             if modal.should_close() {
                 self.modal = None;
             }

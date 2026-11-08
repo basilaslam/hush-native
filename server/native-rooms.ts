@@ -67,7 +67,10 @@ function identity(input: NativeInput) {
   return { certificate: input.certificate, endpoints: endpoints(input.endpoints) };
 }
 export class NativeRooms {
-  constructor(private store: NativeStore) {}
+  constructor(
+    private store: NativeStore,
+    private createRoomId: () => string = () => randomBytes(9).toString('base64url'),
+  ) {}
   async handle(input: NativeInput) {
     if (!input || typeof input !== 'object') throw new RoomError('Invalid native room request.');
     const now = Date.now();
@@ -75,7 +78,7 @@ export class NativeRooms {
       const displayName = name(input.name, 'Your name', 24);
       const roomName = name(input.roomName, 'Room name', 48);
       const network = identity(input);
-      const room = randomBytes(9).toString('base64url');
+      const room = this.createRoomId();
       const peer = randomBytes(9).toString('base64url');
       const token = secret();
       const invite = secret();

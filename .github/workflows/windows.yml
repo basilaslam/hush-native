@@ -3,9 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       app_url:
-        description: Optional default Vercel HTTPS origin (editable in the app)
+        description: Optional default coordination HTTPS origin (editable in the app)
         required: false
         type: string
+      publish_release:
+        description: Publish a GitHub preview release after all checks pass
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -25,12 +29,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm ci --prefix deployment
+      - run: npm run cloudflare:build
       - run: npm run build
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked -p hush-native --all-targets -- -D warnings
       - run: cargo test --locked -p hush-native
       - run: cargo build --locked --release -p hush-native
+      - run: npm test
       - name: Verify no separate Microsoft C runtime is required
         shell: pwsh
         run: |
@@ -61,18 +67,48 @@ jobs:
       - name: Package native installer
         shell: pwsh
         run: '& "${env:ProgramFiles(x86)}\NSIS\makensis.exe" packaging/windows/installer.nsi'
-      - name: Generate release checksums
+      - name: Prepare complete release packages
         shell: pwsh
         run: |
-          $releaseFiles = @('target/release/hush-native.exe', 'packaging/windows/Hush-0.2.1-Windows-Setup.exe')
-          $releaseFiles | ForEach-Object { $digest = Get-FileHash $_ -Algorithm SHA256; "$($digest.Hash.ToLower())  $(Split-Path $_ -Leaf)" } | Set-Content -Encoding ascii SHA256SUMS.txt
+          $version = (Get-Content native/Cargo.toml | Select-String '^version = "([^"]+)"$').Matches.Groups[1].Value
+          if ((Get-Content package.json | ConvertFrom-Json).version -ne $version) { throw 'Package versions do not match' }
+          $packageRoot = New-Item -ItemType Directory -Path portable/Hush -Force
+          $releaseRoot = New-Item -ItemType Directory -Path release-assets -Force
+          Copy-Item target/release/hush-native.exe, README.md, native/assets/OFL-Manrope.txt $packageRoot
+          New-Item -ItemType Directory -Path "$packageRoot/deployment" -Force | Out-Null
+          Copy-Item deployment/helper.mjs, deployment/worker.mjs, deployment/node.exe, deployment/NODE-LICENSE.txt, deployment/package.json, deployment/package-lock.json "$packageRoot/deployment"
+          Copy-Item deployment/node_modules "$packageRoot/deployment/node_modules" -Recurse
+          & "$packageRoot/deployment/node.exe" "$packageRoot/deployment/node_modules/wrangler/bin/wrangler.js" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled deployment runtime did not start' }
+          Compress-Archive -Path portable/Hush -DestinationPath "$releaseRoot/Hush-$version-Windows-Portable.zip"
+          Copy-Item "packaging/windows/Hush-$version-Windows-Setup.exe" $releaseRoot
+          Copy-Item native/assets/OFL-Manrope.txt $releaseRoot
+          git archive --format=zip --prefix="Hush-$version-source/" --output="release-assets/Hush-$version-Source.zip" HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not package source archive' }
+          Get-ChildItem $releaseRoot -File | Sort-Object Name | ForEach-Object { $digest = Get-FileHash $_.FullName -Algorithm SHA256; "$($digest.Hash.ToLower())  $($_.Name)" } | Set-Content -Encoding ascii "$releaseRoot/SHA256SUMS.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: Hush-Windows-native
-          path: |
-            SHA256SUMS.txt
-            target/release/hush-native.exe
-            packaging/windows/Hush-0.2.1-Windows-Setup.exe
-            README.md
-            native/assets/OFL-Manrope.txt
+          path: release-assets/*
           if-no-files-found: error
+  release:
+    if: ${{ inputs.publish_release }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Hush-Windows-native
+          path: release-assets
+      - name: Verify and publish preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          (cd release-assets && sha256sum --check SHA256SUMS.txt)
+          gh release create "v$version" release-assets/* --target "$GITHUB_SHA" --prerelease --title "Hush v$version — Native Windows Preview" --notes-file packaging/windows/release-notes.md

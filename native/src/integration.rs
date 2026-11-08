@@ -11,7 +11,9 @@ pub async fn native_end_to_end() {
     use opus::{Application, Channels, Decoder, Encoder};
     use std::{net::SocketAddr, time::Duration};
     let _ = rustls::crypto::ring::default_provider().install_default();
-    let api = Coordinator::new("http://127.0.0.1:5173").unwrap();
+    let origin =
+        std::env::var("HUSH_TEST_SERVER_URL").unwrap_or_else(|_| "http://127.0.0.1:5173".into());
+    let api = Coordinator::new(&origin).unwrap();
     let a = Identity::new().unwrap();
     let b = Identity::new().unwrap();
     let left = transport::endpoint(0).unwrap();
@@ -115,7 +117,7 @@ pub async fn native_end_to_end() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     assert!(energy > 1.);
-    eprintln!("Native path: 12 Opus frames authenticated, sent, and decoded in {:?}; mean encode compute {:?} per 20 ms frame (this Mac, synthetic input)",start.elapsed(),encoding_time/12);
+    eprintln!("Native path: 12 Opus frames authenticated, sent, and decoded in {:?}; mean encode compute {:?} per 20 ms frame (synthetic input)",start.elapsed(),encoding_time/12);
     let message = serde_json::to_vec(&ControlMessage::Chat {
         text: "One more game?".into(),
     })

@@ -1,6 +1,6 @@
 [package]
 name = "hush-native"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.90"
 description = "Native peer-to-peer voice for a small gaming squad"

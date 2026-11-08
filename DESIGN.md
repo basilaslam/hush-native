@@ -4,7 +4,7 @@ The primary app is native Rust/egui, with no browser-rendered interface. It pres
 
 ## Tokens
 
-Main background #161c19; sidebar #1b231e; raised surface #27332a; divider #313f33; main text #e8ece5; secondary #a3b49b; leaf accent #c3e6a3; accent text #25331f; error #f1a9a0.
+Main background #161c19; sidebar #1b231e; raised surface #27332a; divider #3f4f42; input surface #202c24; main text #e8ece5; secondary #a3b49b; leaf accent #c3e6a3; accent text #25331f; error #f1a9a0.
 
 Embedded static Manrope: body at weight 450, headings at weight 650, derived from the SIL-OFL Google Fonts source in `native/assets/`. Native font families are assigned explicitly so variable-font default axes cannot render the app too thin. Default egui fonts remain as fallback.
 
@@ -21,3 +21,11 @@ Participant tiles show only actual room membership and measured state. Empty sea
 The renderer is event driven. No decorative animation or continuous frame loop is used. Gaming mode is on by default and disables live mic-meter repaints. The optional microphone meter updates at four frames per second only during testing or when enabled in a focused call. Periodic transport statistics refresh separately.
 
 Native source of truth: `native/src/ui.rs`. The Vercel root page only explains how to configure the desktop client; it is not the client.
+
+## Windows form and control styling
+
+Hush explicitly selects the dark egui theme so Windows light-mode defaults cannot replace navigation labels, fields or modal surfaces. Manrope text, dropdowns, checkboxes and disabled states share the same palette.
+
+Settings are grouped into rounded cards for identity/server, audio, talk controls and direct connection. Single-line fields use a 42px minimum height, 12px horizontal padding, dark green fill, rounded borders and a leaf-colored focus state. Device dropdowns fill their column and truncate long device names. The lobby, invitation dialog and chat composer reuse the same field builder.
+
+Labeled icon buttons reserve separate icon and text regions, with measured text width, accessible labels, visible keyboard focus and clipped overflow. Text is never positioned using leading spaces.
