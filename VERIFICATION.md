@@ -2,6 +2,14 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
+## Downloaded v0.3.0 source and release validation
+
+- Imported `Hush-v0.3.0-source-for-Mac.zip` from Downloads, SHA-256 `ee03e7560b33eebb8926aa53c0a52c5bf6f1b0036d622727057fc9782d3454f4`. Downloaded application source files were preserved exactly. Release preparation aligned the root package version, updated the workflow and documented complete portable packaging.
+- [Windows build and validation](https://github.com/basilaslam/hush-native/actions/runs/42452903265) passed at `96ec7de2a52a07a16b5852412b9b6d1417b4e92a`: Worker/server builds, formatting, Clippy, native tests, optimized compilation, service/deployment tests, native QUIC/Opus/chat through local Cloudflare coordination, static-runtime imports, deployment-runtime startup and NSIS packaging.
+- The portable package now includes the complete Node/Wrangler deployment helper beside the native executable. The source ZIP is generated from the exact build commit. Release publication is a separate job gated on successful build/tests and checksum verification.
+- Published installer/portable checksums, Windows x64 GUI/static-runtime imports and the complete portable deployment payload were verified after download. The source ZIP was normalized to LF line endings for Mac and checked byte-for-byte against the release commit; its updated checksum is published with the other downloads.
+- The local Windows and live-account verification records below were retained from the downloaded source. This publication run uses CI and does not perform a new live Cloudflare deployment or game-performance benchmark.
+
 ## Logo update — v0.2.1
 
 - The conversation-H SVG master, transparent marks and outlined wordmark were visually inspected. PNG exports were rasterized at high density; native RGBA dimensions/transparency and all six Windows ICO sizes were verified.

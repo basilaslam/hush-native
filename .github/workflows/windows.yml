@@ -83,7 +83,7 @@ jobs:
           Compress-Archive -Path portable/Hush -DestinationPath "$releaseRoot/Hush-$version-Windows-Portable.zip"
           Copy-Item "packaging/windows/Hush-$version-Windows-Setup.exe" $releaseRoot
           Copy-Item native/assets/OFL-Manrope.txt $releaseRoot
-          git archive --format=zip --prefix="Hush-$version-source/" --output="release-assets/Hush-$version-Source.zip" HEAD
+          git -c core.autocrlf=false -c core.eol=lf archive --format=zip --prefix="Hush-$version-source/" --output="release-assets/Hush-$version-Source.zip" HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Could not package source archive' }
           Get-ChildItem $releaseRoot -File | Sort-Object Name | ForEach-Object { $digest = Get-FileHash $_.FullName -Algorithm SHA256; "$($digest.Hash.ToLower())  $($_.Name)" } | Set-Content -Encoding ascii "$releaseRoot/SHA256SUMS.txt"
       - uses: actions/upload-artifact@v4
