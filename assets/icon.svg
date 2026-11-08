@@ -1,4 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#059669"/>
-  <text x="32" y="32" dy="0.35em" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="26" font-weight="600" fill="#ffffff">DL</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Hush"><title>Hush</title><rect width="256" height="256" rx="58" fill="#c3e6a3"/><path d="M68 55H91Q107 55 107 71V109H149V71Q149 55 165 55H188Q204 55 204 71V166Q204 182 188 182H172L149 205V151H107V166Q107 182 91 182H68Q52 182 52 166V71Q52 55 68 55Z" fill="#16251f"/></svg>

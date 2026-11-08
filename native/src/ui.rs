@@ -197,15 +197,13 @@ fn icon(painter: &egui::Painter, rect: Rect, kind: Icon, color: Color32) {
     }
 }
 fn logo(painter: &egui::Painter, rect: Rect) {
-    painter.rect_filled(rect, 12., GREEN);
-    let center = rect.center();
-    for (x, height) in [(-9., 13.), (0., 24.), (9., 18.)] {
-        painter.rect_filled(
-            Rect::from_center_size(center + Vec2::new(x, 0.), Vec2::new(4., height)),
-            3.,
-            INK,
-        );
-    }
+    let texture = crate::brand::texture(painter.ctx());
+    painter.image(
+        texture.id(),
+        rect,
+        Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)),
+        Color32::WHITE,
+    );
 }
 fn action(ui: &mut egui::Ui, label: &str, kind: Icon, primary: bool) -> egui::Response {
     let response = ui.add(
@@ -299,6 +297,7 @@ pub struct HushApp {
 impl HushApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> anyhow::Result<Self> {
         let ctx = &cc.egui_ctx;
+        let _ = crate::brand::texture(ctx);
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             "Manrope".into(),
@@ -574,7 +573,10 @@ impl HushApp {
                     let _ = self.config.save();
                 }
                 ui.with_layout(Layout::bottom_up(Align::LEFT), |ui| {
-                    small(ui, "Hush 0.2 · native Rust");
+                    small(
+                        ui,
+                        concat!("Hush ", env!("CARGO_PKG_VERSION"), " · native Rust"),
+                    );
                     ui.add_space(9.);
                     ui.separator();
                     ui.add_space(10.);

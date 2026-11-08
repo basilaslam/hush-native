@@ -8,6 +8,8 @@ Main background #161c19; sidebar #1b231e; raised surface #27332a; divider #313f3
 
 Embedded static Manrope: body at weight 450, headings at weight 650, derived from the SIL-OFL Google Fonts source in `native/assets/`. Native font families are assigned explicitly so variable-font default axes cannot render the app too thin. Default egui fonts remain as fallback.
 
+The Hush mark joins an H with a speech tail. The leaf tile and dark forest mark are shared across the native interface, window/taskbar icon, executable, installer and favicon. Vector masters and outlined Manrope wordmark are in `assets/brand/`. The native UI uploads its embedded RGBA artwork once per egui context and reuses the texture; there is no per-frame decoding or logo animation.
+
 Controls use 8–9px rounding, panels 12–14px. Icon strokes share a single 20-unit geometry and 1.6-unit stroke system. The application provides native accessibility semantics, focus styling and textual descriptions for icon buttons.
 
 ## Composition and behavior

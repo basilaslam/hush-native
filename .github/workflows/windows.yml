@@ -64,7 +64,7 @@ jobs:
       - name: Generate release checksums
         shell: pwsh
         run: |
-          $releaseFiles = @('target/release/hush-native.exe', 'packaging/windows/Hush-0.2.0-Windows-Setup.exe')
+          $releaseFiles = @('target/release/hush-native.exe', 'packaging/windows/Hush-0.2.1-Windows-Setup.exe')
           $releaseFiles | ForEach-Object { $digest = Get-FileHash $_ -Algorithm SHA256; "$($digest.Hash.ToLower())  $(Split-Path $_ -Leaf)" } | Set-Content -Encoding ascii SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -72,7 +72,7 @@ jobs:
           path: |
             SHA256SUMS.txt
             target/release/hush-native.exe
-            packaging/windows/Hush-0.2.0-Windows-Setup.exe
+            packaging/windows/Hush-0.2.1-Windows-Setup.exe
             README.md
             native/assets/OFL-Manrope.txt
           if-no-files-found: error

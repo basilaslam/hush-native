@@ -1,5 +1,7 @@
 # Hush — native Rust voice
 
+<img src="assets/brand/hush-icon-512.png" alt="Hush speech H app icon" width="96" height="96">
+
 [Download Windows preview](https://github.com/basilaslam/hush-native/releases) · [Source repository](https://github.com/basilaslam/hush-native)
 
 A standalone desktop voice app for a small gaming squad. The shipping client is **Rust + egui/eframe + CPAL + Opus + Quinn**. It has no browser, WebView, Tauri, Electron, JavaScript client, or Discord dependency.
@@ -82,7 +84,7 @@ On Windows, build with `cargo build --release --locked -p hush-native`. Opus lin
 makensis packaging/windows/installer.nsi
 ```
 
-The executable and `packaging/windows/Hush-0.2.0-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
+The executable and `packaging/windows/Hush-0.2.1-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default Vercel origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and uploads them as an artifact. It does not publish a release.
 
@@ -119,6 +121,8 @@ See `VERIFICATION.md` for actual results and limits. Low overhead is an implemen
 
 ## Source map
 
+- `assets/brand/`: vector/PNG logo, transparent marks and outlined wordmark; see its README for regeneration.
+- `native/src/brand.rs`: shared cached UI texture and native window/taskbar icon.
 - `native/src/ui.rs`: native interface and global shortcut registration.
 - `native/src/audio.rs`: device callbacks, Opus, resampling, jitter buffering and mixing.
 - `native/src/transport.rs`: mutual TLS identities, QUIC transport, router mapping and loss accounting.

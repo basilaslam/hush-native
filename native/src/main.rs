@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 mod audio;
+mod brand;
 mod config;
 mod coordination;
 mod engine;
@@ -21,6 +22,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("Hush · Your space to play")
+            .with_icon(brand::window_icon())
             .with_inner_size([1300., 880.])
             .with_min_inner_size([500., 650.]),
         renderer: eframe::Renderer::Glow,
