@@ -1,6 +1,10 @@
 [workspace]
 members = ["native"]
 resolver = "2"
+exclude = ["vendor/eframe"]
+
+[patch.crates-io]
+eframe = { path = "vendor/eframe" }
 
 [profile.release]
 lto = "thin"

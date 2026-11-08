@@ -32,6 +32,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -134,7 +137,7 @@ jobs:
           if ((Get-Content package.json | ConvertFrom-Json).version -ne $version) { throw 'Package versions do not match' }
           $packageRoot = New-Item -ItemType Directory -Path portable/Hush -Force
           $releaseRoot = New-Item -ItemType Directory -Path release-assets -Force
-          Copy-Item target/release/hush-native.exe, README.md, native/assets/OFL-Manrope.txt $packageRoot
+          Copy-Item target/release/hush-native.exe, README.md, native/assets/OFL-Manrope.txt, native/assets/LICENSE-eframe.txt $packageRoot
           Compress-Archive -Path portable/Hush -DestinationPath "$releaseRoot/Hush-$version-Windows-Portable.zip"
           Copy-Item "packaging/windows/Hush-$version-Windows-Setup.exe" $releaseRoot
           Copy-Item native/assets/OFL-Manrope.txt $releaseRoot

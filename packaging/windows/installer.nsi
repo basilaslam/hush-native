@@ -18,6 +18,7 @@ Section "Hush native desktop client"
   SetOutPath "$INSTDIR"
   File "..\..\target\release\hush-native.exe"
   File "..\..\native\assets\OFL-Manrope.txt"
+  File "..\..\native\assets\LICENSE-eframe.txt"
   ; Remove only the app-owned payload after writing the new client.
   ; Preferences and Cloudflare credentials are outside the install directory.
   RMDir /r "$INSTDIR\deployment"
@@ -33,6 +34,7 @@ SectionEnd
 Section "Uninstall"
   Delete "$INSTDIR\hush-native.exe"
   Delete "$INSTDIR\OFL-Manrope.txt"
+  Delete "$INSTDIR\LICENSE-eframe.txt"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir /r "$INSTDIR\deployment"
   RMDir "$INSTDIR"

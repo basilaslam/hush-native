@@ -35,3 +35,5 @@ Labeled icon buttons reserve separate icon and text regions, with measured text 
 Settings contains the coordination-address field and a link to terminal setup instructions. Cloudflare sign-in, account selection and deployment run only in the host's terminal. The client contains no deployment controls, Node runtime or Wrangler payload. Room-size selection and GitHub app updates remain native controls.
 
 Windows tray lifetime is native and event-driven. Worker repaint requests pass through a shared visibility gate; hidden/minimized windows return before egui panels and timers. Native menu actions and call-end transitions may wake one lifecycle frame. Retain the window/context for fast restoration. Shortcut recording suspends the active global registration, and saving a changed binding registers it before releasing the old one. Quit/update bypass close-to-tray.
+
+The pinned eframe source in `vendor/eframe` patches Windows hidden/minimized repaint scheduling to avoid a full-core idle spin. See its HUSH-PATCH.md for the reproduced failure and upstream provenance. This changes scheduling rather than adding a polling workaround.
