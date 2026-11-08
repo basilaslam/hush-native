@@ -89,7 +89,7 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
-          $sandbox = "$env:RUNNER_TEMP/Hush upgrade sandbox"
+          $sandbox = Join-Path $env:RUNNER_TEMP 'Hush upgrade sandbox'
           New-Item -ItemType Directory "$sandbox/deployment/node_modules" -Force | Out-Null
           Set-Content "$sandbox/deployment/node.exe" 'old runtime'
           Set-Content "$sandbox/deployment/node_modules/legacy.txt" 'old tools'
@@ -101,8 +101,12 @@ jobs:
           $prefsBefore = (Get-FileHash $preferences).Hash
           $stateBefore = (Get-FileHash $serverState).Hash
           $installer = (Resolve-Path "packaging/windows/Hush-$version-Windows-Setup.exe").Path
-          $installed = Start-Process $installer -ArgumentList @('/S', ('/D=' + $sandbox)) -Wait -PassThru
+          $installed = Start-Process $installer -ArgumentList ("/S /D=" + $sandbox) -Wait -PassThru
           if ($installed.ExitCode -ne 0) { throw 'Silent installer failed' }
+          if (-not (Test-Path (Join-Path $sandbox 'hush-native.exe'))) {
+            Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Hush' | Format-List
+            throw "Installer did not write to the requested path: $sandbox"
+          }
           if (Test-Path "$sandbox/deployment") { throw 'Legacy deployment payload remains' }
           if ((Get-FileHash "$sandbox/hush-native.exe").Hash -ne (Get-FileHash target/release/hush-native.exe).Hash) { throw 'Installed executable differs from the build' }
           if ((Get-FileHash $preferences).Hash -ne $prefsBefore -or (Get-FileHash $serverState).Hash -ne $stateBefore) { throw 'Upgrade changed saved settings or server state' }

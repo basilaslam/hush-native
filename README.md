@@ -34,14 +34,14 @@ Only the host runs setup. GitHub hosts the scripts and app updates; Cloudflare r
 **Windows PowerShell:**
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing https://github.com/basilaslam/hush-native/releases/download/v0.5.2/setup-server.ps1 -OutFile "$env:TEMP\hush-setup.ps1"
+Invoke-WebRequest -UseBasicParsing https://github.com/basilaslam/hush-native/releases/download/v0.5.3/setup-server.ps1 -OutFile "$env:TEMP\hush-setup.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\hush-setup.ps1"
 ```
 
 **macOS/Linux:**
 
 ```sh
-curl -fL https://github.com/basilaslam/hush-native/releases/download/v0.5.2/setup-server.sh -o setup-server.sh
+curl -fL https://github.com/basilaslam/hush-native/releases/download/v0.5.3/setup-server.sh -o setup-server.sh
 bash setup-server.sh
 ```
 
@@ -126,7 +126,7 @@ On Windows, build the standalone client with `cargo build --release --locked -p 
 makensis packaging/windows/installer.nsi
 ```
 
-The executable and `packaging/windows/Hush-0.5.2-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
+The executable and `packaging/windows/Hush-0.5.3-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default coordination origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and packages the small native installer/portable app, a separate server setup ZIP and launchers, a source ZIP and checksums. Enable **publish_release** to publish a GitHub preview release only after all checks pass; otherwise it uploads the packages as a workflow artifact.
 

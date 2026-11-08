@@ -1,5 +1,5 @@
 param(
-  [string]$Release = 'v0.5.2',
+  [string]$Release = 'v0.5.3',
   [switch]$DryRun,
   [switch]$BootstrapOnly,
   [switch]$UseLocalNode,
