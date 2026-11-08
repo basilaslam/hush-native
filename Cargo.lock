@@ -1648,6 +1648,7 @@ dependencies = [
  "igd-next",
  "opus",
  "quinn",
+ "raw-window-handle",
  "rcgen",
  "reqwest",
  "rtrb",

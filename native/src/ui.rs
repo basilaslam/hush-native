@@ -458,6 +458,13 @@ impl HushApp {
         });
         let config = Config::load();
         let wake = crate::wake::Wake::new(ctx.clone());
+        #[cfg(windows)]
+        {
+            use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            if let RawWindowHandle::Win32(handle) = cc.window_handle()?.as_raw() {
+                wake.attach_window(handle.hwnd.get() as usize);
+            }
+        }
         let engine = Controller::new(wake.clone())?;
         let desktop = crate::desktop::Desktop::new(wake.clone()).unwrap_or_else(|error| {
             engine.state.lock().unwrap().error =

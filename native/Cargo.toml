@@ -34,8 +34,7 @@ tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
 tray-icon = { version = "0.26.1", default-features = false }
-
-[target.'cfg(windows)'.dev-dependencies]
+raw-window-handle = "0.6"
 windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(windows)'.build-dependencies]
