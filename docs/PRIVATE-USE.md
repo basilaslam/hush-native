@@ -1,4 +1,4 @@
-# Current implementation (v0.3.0)
+# Current implementation (v0.4.0)
 
 Cloudflare coordination and the Windows in-app Deploy server flow are now implemented. The host signs in through the official Wrangler browser flow; Hush deploys a Worker with SQLite Durable Objects, verifies it and saves the address. Each friend still needs the same server address and room invitation.
 
@@ -29,3 +29,5 @@ Keeping Vercel would therefore mean changing the room/presence store or acceptin
 ## What needs testing before the group relies on it
 
 Verify direct and forced-relay calls between separate home networks, including a CGNAT/mobile connection; test reconnects and expired credentials. On the actual Windows gaming PCs, test devices, F8 while the game has focus, CPU/RAM, upload traffic and frame-time percentiles while streaming. A native app reduces some software overhead, but an upload-saturated connection can still lose packets. No provider or transport change establishes a zero-FPS-loss claim without those measurements.
+
+Room creators can choose 2–32 participants before creating a room. Redeploy the updated Worker to enable this on an existing server. All participants must update for rooms above six. The native app now offers automatic GitHub release checks and explicit verified Windows download/install controls; see the main README.

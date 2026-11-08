@@ -1,6 +1,6 @@
 [package]
 name = "hush-native"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.90"
 description = "Native peer-to-peer voice for a small gaming squad"
@@ -25,6 +25,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+semver = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "signal"] }
 url = "2"
 

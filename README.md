@@ -27,7 +27,7 @@ npm run native:build
 
 Open **Voice & settings** in the app, click **Deploy server**, complete Cloudflare sign-in and consent in your browser, then choose your name and devices. Hush verifies the new server and saves its address automatically. You can also enter an existing Cloudflare or Vercel HTTPS origin and save. Create a room or join with a `hush1.…` invitation. Each participant needs the native app and the same coordination deployment. Browser-demo invitations from the earlier prototype are incompatible.
 
-## Deploy a server from Hush (Windows v0.3.0)
+## Deploy a server from Hush (Windows v0.4.0)
 
 Only the host needs a Cloudflare account. Click **Voice & settings → Deploy server** and complete the official Wrangler browser sign-in. Choose an account if you have several. Hush deploys a Worker with SQLite Durable Objects, checks its deployment identity and native protocol, then saves its HTTPS address. Share that server address and the room invitation with your friends; invitations currently do not include the server address.
 
@@ -62,13 +62,13 @@ The Connection screen reports the actual route/address, QUIC network round trip 
 
 ## Native features
 
-- Private rooms for up to six people; capability invitations, no account registration.
+- Private rooms with a creator-selected size of 2–32 people (default six); capability invitations, no account registration.
 - Native rendering with a dark forest/cream design, locally embedded Manrope fonts and native accessibility semantics.
 - Native microphone capture and playback through CPAL (WASAPI on Windows).
 - Mono Opus voice at 24, 32 or 64 kbps per peer; 20 ms frames; codec complexity 3; VBR, DTX and in-band FEC.
 - One Opus encode per microphone frame for the entire squad, rather than one encode per peer. No encoding while no peers are connected.
 - Bounded sample rings in device callbacks; no network I/O or mutex acquisition in the steady-state callbacks.
-- Dedicated audio worker with continuous device-rate resampling, bounded jitter buffering, packet loss concealment/FEC and mixing for up to five remote streams.
+- Dedicated audio worker with continuous device-rate resampling, bounded jitter buffering, packet loss concealment/FEC and mixing for up to 31 remote streams.
 - Mute, deafen (also blocks microphone transmission), microphone gain and output volume.
 - Global **F8** push-to-talk, registered only during a PTT call; in-app hold-to-talk fallback if F8 is unavailable. Games with higher Windows privilege levels may intercept a global shortcut: test your actual setup.
 - Device selection and local microphone level testing. Device changes require leaving the room. The microphone test is disabled during calls.
@@ -77,6 +77,20 @@ The Connection screen reports the actual route/address, QUIC network round trip 
 - A compact native window.
 
 This release is voice-first. There is no screen sharing, overlay, recording, acoustic echo cancellation or neural noise suppression. Use headphones. Those features have distinct performance and implementation costs and are not represented as working controls.
+
+## Room size and GitHub updates
+
+Choose **Room size** in the lobby before creating a room. The server enforces 2–32 people, including the creator; six remains the default. Capacity is fixed for that room. Create a new room to change it. Unlimited mesh rooms are not supported: every participant sends voice to every other participant, so larger rooms increase CPU and upload traffic. The upper setting is not a performance guarantee.
+
+To use rooms above six, **all participants need v0.4.0 or newer**, and the host must run **Deploy server** again (or redeploy Vercel) with the updated source. Older rooms and clients retain their six-person defaults. Updating the app does not automatically update an already deployed room server.
+
+In **Voice & settings → App updates**, Hush checks this public GitHub repository at startup and every six hours. Disable automatic checks or exclude preview releases with the checkboxes and Save settings. Preview updates are included by default because this app currently ships preview releases. Checks do not need a GitHub account/token; API/network failures are recoverable and do not close calls.
+
+On Windows, choose **Download update**, then **Install update & restart**. Download/install controls are disabled during calls, microphone testing and server setup. Updates are not downloaded or installed automatically. Installation waits for Hush to exit, verifies the installer again, runs it silently in the same writable app folder, and restarts Hush. Preferences remain in the normal user configuration folder. Portable users also receive the installer-based update in their existing folder. Read-only folders require a manual installer download. Failed installation details are surfaced at the next launch.
+
+Downloads use bounded HTTPS requests to this repository and GitHub asset hosts. The app checks both GitHub's asset SHA-256 digest and `SHA256SUMS.txt`, rejects mismatches/oversized files, and refuses downgrades. These hashes check integrity; they are not independent publisher signatures. The trusted GitHub repository/account remains the update trust boundary. The Windows preview is still unsigned. Automatic installation is Windows-only.
+
+**v0.3.0 has no updater:** install v0.4.0 manually once. Future releases can then be applied from the app. Maintainers bump the versions and release notes, commit, then push a matching `v…` tag; GitHub Actions tests/builds and publishes the preview. Manual workflow dispatch with `publish_release` remains available.
 
 ## Security and privacy
 
@@ -94,7 +108,7 @@ On Windows, prepare the deployment payload with `npm ci`, `npm ci --prefix deplo
 makensis packaging/windows/installer.nsi
 ```
 
-The executable and `packaging/windows/Hush-0.3.0-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
+The executable and `packaging/windows/Hush-0.4.0-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
 
 Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default coordination origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and packages a portable ZIP with the complete deployment helper, a source ZIP and checksums. Enable **publish_release** to publish a GitHub preview release only after all checks pass; otherwise it uploads the packages as a workflow artifact.
 

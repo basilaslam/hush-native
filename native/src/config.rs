@@ -1,12 +1,19 @@
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddrV4, path::PathBuf};
+pub const MAX_ROOM_MEMBERS: usize = 32;
+pub fn default_room_capacity() -> usize {
+    6
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub server: String,
     pub name: String,
     pub room_name: String,
+    pub max_members: usize,
+    pub check_updates: bool,
+    pub preview_updates: bool,
     pub input: String,
     pub output: String,
     pub bitrate: i32,
@@ -24,6 +31,9 @@ impl Default for Config {
             server: option_env!("HUSH_SERVER_URL").unwrap_or("").to_owned(),
             name: String::new(),
             room_name: "The hangout".into(),
+            max_members: default_room_capacity(),
+            check_updates: true,
+            preview_updates: true,
             input: String::new(),
             output: String::new(),
             bitrate: 32_000,
@@ -59,6 +69,9 @@ impl Config {
         Ok(())
     }
     pub fn validate(&self) -> Result<()> {
+        if !(2..=MAX_ROOM_MEMBERS).contains(&self.max_members) {
+            bail!("Choose a room size from 2 to {MAX_ROOM_MEMBERS}");
+        }
         let url = url::Url::parse(self.server.trim())
             .context("Deploy a server or set its HTTPS address in Settings first")?;
         let local = url
@@ -113,6 +126,21 @@ pub fn parse_invite(value: &str) -> Result<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn older_preferences_get_capacity_and_update_defaults() {
+        let mut config: Config =
+            serde_json::from_str(r#"{"name":"Player","server":"https://room.example"}"#).unwrap();
+        assert_eq!(config.max_members, 6);
+        assert!(config.check_updates && config.preview_updates);
+        for size in [2, 32] {
+            config.max_members = size;
+            assert!(config.validate().is_ok());
+        }
+        for size in [0, 1, 33, usize::MAX] {
+            config.max_members = size;
+            assert!(config.validate().is_err());
+        }
+    }
     #[test]
     fn native_invites_are_distinct_and_validated() {
         assert!(parse_invite("hush1.abcdefghijkl.01234567890123456789012345678901").is_ok());

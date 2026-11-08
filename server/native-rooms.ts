@@ -12,7 +12,13 @@ export type NativePeer = {
   seen: number;
 };
 type Member = NativePeer & { tokenHash: string };
-type Room = { version: 1; name: string; inviteHash: string; members: Member[]; expires: number };
+type Room = { version: 1; name: string; maxMembers?: number; inviteHash: string; members: Member[]; expires: number };
+export const MAX_ROOM_MEMBERS = 32;
+function roomCapacity(value: unknown = 6): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 2 || value > MAX_ROOM_MEMBERS)
+    throw new RoomError(`Room size must be a whole number from 2 to ${MAX_ROOM_MEMBERS}.`);
+  return value;
+}
 export type NativeInput = {
   op?: string;
   room?: string;
@@ -21,6 +27,8 @@ export type NativeInput = {
   invite?: string;
   name?: string;
   roomName?: string;
+  maxMembers?: number;
+  clientMaxMembers?: number;
   certificate?: string;
   endpoints?: string[];
   muted?: boolean;
@@ -77,6 +85,7 @@ export class NativeRooms {
     if (input.op === 'create') {
       const displayName = name(input.name, 'Your name', 24);
       const roomName = name(input.roomName, 'Room name', 48);
+      const maxMembers = roomCapacity(input.maxMembers);
       const network = identity(input);
       const room = this.createRoomId();
       const peer = randomBytes(9).toString('base64url');
@@ -85,6 +94,7 @@ export class NativeRooms {
       const data: Room = {
         version: 1,
         name: roomName,
+        maxMembers,
         inviteHash: hash(invite),
         expires: now + TTL,
         members: [
@@ -101,12 +111,12 @@ export class NativeRooms {
       };
       if (!(await this.store.write(`native/rooms/${room}.json`, JSON.stringify(data), null)))
         throw new RoomError('Please try creating the room again.', 503);
-      return { room, peer, token, invite, roomName };
+      return { room, peer, token, invite, roomName, maxMembers };
     }
     if (!input.room || !/^[\w-]{12}$/.test(input.room))
       throw new RoomError('Invalid native room code.');
     const path = `native/rooms/${input.room}.json`;
-    for (let retry = 0; retry < 12; retry++) {
+    for (let retry = 0; retry < MAX_ROOM_MEMBERS; retry++) {
       const document = await this.store.read(path);
       if (!document) throw new RoomError('Room not found. Ask for a new invitation.', 404);
       const room: Room = JSON.parse(document.value);
@@ -118,7 +128,10 @@ export class NativeRooms {
       if (input.op === 'join') {
         if (!same(input.invite, room.inviteHash))
           throw new RoomError('This invitation is invalid.', 403);
-        if (room.members.length >= 6) throw new RoomError('This room already has six people.', 409);
+        const maxMembers = roomCapacity(room.maxMembers);
+        if ((input.clientMaxMembers ?? 6) < maxMembers)
+          throw new RoomError('Update Hush to join a room larger than six people.', 409);
+        if (room.members.length >= maxMembers) throw new RoomError(`This room is full (${maxMembers} people).`, 409);
         const displayName = name(input.name, 'Your name', 24);
         const network = identity(input);
         if (room.members.some((member) => member.certificate === network.certificate))
@@ -134,7 +147,7 @@ export class NativeRooms {
           deafened: false,
           seen: now,
         });
-        result = { room: input.room, peer, token, invite: input.invite, roomName: room.name };
+        result = { room: input.room, peer, token, invite: input.invite, roomName: room.name, maxMembers };
         changed = true;
       } else {
         const member = room.members.find((member) => member.id === input.peer);
@@ -163,6 +176,7 @@ export class NativeRooms {
           result = {
             version: 1,
             roomName: room.name,
+            maxMembers: roomCapacity(room.maxMembers),
             peers: room.members.map(({ tokenHash: _tokenHash, ...peer }) => peer),
           };
         } else throw new RoomError('Unknown native room action.');
@@ -182,7 +196,7 @@ export class NativeRooms {
       const value = before
         ? JSON.parse(before.value)
         : { count: 0, expires: (minute + 2) * 60_000 };
-      if (value.count >= 20) return false;
+      if (value.count >= 64) return false;
       value.count++;
       if (await this.store.write(path, JSON.stringify(value), before?.revision ?? null))
         return true;

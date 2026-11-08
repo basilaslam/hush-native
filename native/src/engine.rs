@@ -490,6 +490,7 @@ async fn run_session(
                         let mut view = state.lock().unwrap();
                         if let Some(current) = view.session.as_mut() {
                             current.room_name = snapshot.room_name;
+                            current.max_members = snapshot.max_members;
                         }
                         view.peers = peers.clone();
                         if !view.coordination_online {

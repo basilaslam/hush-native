@@ -364,6 +364,8 @@ enum Modal {
 pub struct HushApp {
     engine: Controller,
     deployment: crate::deploy::Deployment,
+    updater: crate::updater::Updater,
+    last_update_check: std::time::Instant,
     config: Config,
     draft: Config,
     page: Page,
@@ -456,6 +458,9 @@ impl HushApp {
         });
         let config = Config::load();
         let engine = Controller::new(ctx.clone())?;
+        if let Some(error) = crate::updater::previous_install_error() {
+            engine.state.lock().unwrap().error = error;
+        }
         engine.configure(&config);
         let controls = engine.controls.clone();
         let repaint = ctx.clone();
@@ -466,9 +471,15 @@ impl HushApp {
             repaint.request_repaint();
         }));
         let hotkey = GlobalHotKeyManager::new().ok();
+        let updater = crate::updater::Updater::default();
+        if config.check_updates {
+            updater.check(ctx.clone(), config.preview_updates);
+        }
         Ok(Self {
             engine,
             deployment: crate::deploy::Deployment::default(),
+            updater,
+            last_update_check: std::time::Instant::now(),
             draft: config.clone(),
             config,
             page: Page::Room,
@@ -800,6 +811,70 @@ impl HushApp {
             ui.add_space(12.);
             small(ui, "Finish server setup, leave the room and stop the microphone test before changing connection settings.");
         }
+        ui.add_space(16.);
+        form_card(ui, |ui| {
+            section_heading(
+                ui,
+                "App updates",
+                concat!(
+                    "Hush ",
+                    env!("CARGO_PKG_VERSION"),
+                    " · Updates from your GitHub releases"
+                ),
+                Icon::Arrow,
+            );
+            ui.checkbox(
+                &mut self.draft.check_updates,
+                "Check automatically at startup and every six hours",
+            );
+            ui.checkbox(&mut self.draft.preview_updates, "Include preview releases");
+            let update = self.updater.snapshot();
+            ui.add_space(8.);
+            if !update.message.is_empty() {
+                ui.label(RichText::new(&update.message).color(if update.error {
+                    RED
+                } else {
+                    MUTED
+                }));
+            }
+            if update.busy && update.release.is_some() {
+                ui.add(egui::ProgressBar::new(update.progress).show_percentage());
+            }
+            ui.add_enabled_ui(!update.busy, |ui| {
+                if action(ui, "Check for updates", Icon::Arrow, false).clicked() {
+                    self.last_update_check = std::time::Instant::now();
+                    self.updater
+                        .check(ui.ctx().clone(), self.draft.preview_updates);
+                }
+            });
+            if let Some(release) = &update.release {
+                ui.hyperlink_to("View release on GitHub", &release.page);
+                ui.add_enabled_ui(
+                    cfg!(target_os = "windows") && !update.busy && !locked,
+                    |ui| {
+                        if update.installer.is_some() {
+                            if action(ui, "Install update & restart", Icon::Arrow, true).clicked() {
+                                match self.config.save().and_then(|()| self.updater.install()) {
+                                    Ok(()) => {
+                                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close)
+                                    }
+                                    Err(error) => {
+                                        self.engine.state.lock().unwrap().error = error.to_string()
+                                    }
+                                }
+                            }
+                        } else if action(ui, "Download update", Icon::Arrow, true).clicked() {
+                            self.updater.download(ui.ctx().clone());
+                        }
+                    },
+                );
+            }
+            ui.hyperlink_to(
+                "All GitHub releases",
+                "https://github.com/basilaslam/hush-native/releases",
+            );
+            small(ui, "Save settings to keep your update preferences. Leave calls and stop microphone/server setup before downloading or installing. Installation updates this Windows folder and restarts Hush.");
+        });
         ui.add_space(20.);
         if action(ui, "Save settings", Icon::Settings, true).clicked() {
             self.save();
@@ -1111,6 +1186,15 @@ impl HushApp {
                         }
                     });
                     ui.add_space(8.);
+                    ui.horizontal(|ui| {
+                        label(ui, "Room size");
+                        if ui.add(egui::DragValue::new(&mut self.config.max_members)
+                            .range(2..=crate::config::MAX_ROOM_MEMBERS).suffix(" people")).changed() {
+                            self.draft.max_members = self.config.max_members;
+                        }
+                    });
+                    small(ui, "Choose 2–32 people before creating the room. Larger rooms use more CPU and upload.");
+                    ui.add_space(8.);
                     ui.add_enabled_ui(!state.busy && !state.testing, |ui| {
                         ui.horizontal(|ui| {
                             if action(ui, "Create a room", Icon::Plus, true).clicked() {
@@ -1158,7 +1242,11 @@ impl HushApp {
         ui.horizontal(|ui| {
             title(
                 ui,
-                &format!("In the room  ·  {} / 6", state.peers.len() + 1),
+                &format!(
+                    "In the room  ·  {} / {}",
+                    state.peers.len() + 1,
+                    session.max_members
+                ),
                 14.,
             );
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1207,7 +1295,7 @@ impl HushApp {
         } else {
             1
         };
-        let count = people.len() + usize::from(people.len() < 6);
+        let count = people.len() + usize::from(people.len() < session.max_members);
         for row in (0..count).step_by(columns) {
             ui.columns(columns, |uis| {
                 for (column, ui) in uis.iter_mut().enumerate() {
@@ -1463,6 +1551,14 @@ fn avatar(ui: &mut egui::Ui, name: &str, size: f32, color: Color32) {
 }
 impl eframe::App for HushApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.config.check_updates {
+            let interval = std::time::Duration::from_secs(6 * 60 * 60);
+            if self.last_update_check.elapsed() >= interval && !self.updater.snapshot().busy {
+                self.last_update_check = std::time::Instant::now();
+                self.updater.check(ctx.clone(), self.config.preview_updates);
+            }
+            ctx.request_repaint_after(interval.saturating_sub(self.last_update_check.elapsed()));
+        }
         if let Some(server) = self.deployment.take_ready() {
             self.config.server = server.clone();
             self.draft.server = server;
@@ -1624,7 +1720,7 @@ impl eframe::App for HushApp {
                     if action(ui, "Copy invitation", Icon::Link, true).clicked() {
                         ctx.copy_text(session.invitation()); self.copied = true;
                     }
-                    small(ui, "Anyone with the invitation can join, up to six people. Keep it between friends.");
+                    small(ui, "Anyone with the invitation can join until the room reaches its selected size. Keep it between friends.");
                 }
                 ui.add_space(10.);
                 if action(ui, "Close", Icon::Close, false).clicked() { self.modal = None; }

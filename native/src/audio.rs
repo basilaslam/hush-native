@@ -49,7 +49,7 @@ impl AudioHandle {
         repaint: eframe::egui::Context,
         encoded: tokio::sync::mpsc::Sender<Encoded>,
     ) -> Result<Self> {
-        let (tx, rx) = crossbeam_channel::bounded(64);
+        let (tx, rx) = crossbeam_channel::bounded(256);
         let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(1);
         let stop = Arc::new(AtomicBool::new(false));
         let stopped = stop.clone();
@@ -324,14 +324,7 @@ fn run(worker: AudioWorker) -> Result<()> {
                     sequence,
                     bytes,
                 }) => {
-                    if decoders.len() < 5 || decoders.contains_key(&peer) {
-                        if let std::collections::hash_map::Entry::Vacant(entry) =
-                            decoders.entry(peer.clone())
-                        {
-                            entry.insert(JitterDecoder::new()?);
-                        }
-                        decoders.get_mut(&peer).unwrap().insert(sequence, bytes);
-                    }
+                    insert_packet(&mut decoders, peer, sequence, bytes)?;
                 }
                 Ok(AudioCommand::Remove(peer)) => {
                     decoders.remove(&peer);
@@ -395,6 +388,20 @@ fn run(worker: AudioWorker) -> Result<()> {
         }
     }
     controls.level.store(0, Ordering::Relaxed);
+    Ok(())
+}
+fn insert_packet(
+    decoders: &mut HashMap<String, JitterDecoder>,
+    peer: String,
+    sequence: u32,
+    bytes: Bytes,
+) -> Result<()> {
+    if decoders.len() < crate::config::MAX_ROOM_MEMBERS - 1 || decoders.contains_key(&peer) {
+        if let std::collections::hash_map::Entry::Vacant(entry) = decoders.entry(peer.clone()) {
+            entry.insert(JitterDecoder::new()?);
+        }
+        decoders.get_mut(&peer).unwrap().insert(sequence, bytes);
+    }
     Ok(())
 }
 /// Continuous linear resampling without an allocation in either device callback.
@@ -536,6 +543,33 @@ mod tests {
             decoder.insert(i, bytes.clone());
         }
         assert!(decoder.packets.len() <= 8);
+    }
+    #[test]
+    fn every_stream_in_a_large_room_decodes_real_audio() {
+        let mut encoder = make_encoder(32000).unwrap();
+        let pcm: Vec<f32> = (0..FRAME)
+            .map(|i| (i as f32 * 440. * std::f32::consts::TAU / RATE as f32).sin() * 0.2)
+            .collect();
+        let mut packet = [0u8; MAX_ENCODED];
+        let length = encoder.encode_float(&pcm, &mut packet).unwrap();
+        let bytes = Bytes::copy_from_slice(&packet[..length]);
+        let mut decoders = HashMap::new();
+        for peer in 0..crate::config::MAX_ROOM_MEMBERS - 1 {
+            for sequence in 0..2 {
+                insert_packet(&mut decoders, peer.to_string(), sequence, bytes.clone()).unwrap();
+            }
+        }
+        assert_eq!(decoders.len(), 31);
+        for decoder in decoders.values_mut() {
+            let mut output = [0.; FRAME];
+            assert!(decoder.render(&mut output));
+            assert!(output.iter().any(|sample| sample.abs() > 0.0001));
+        }
+        insert_packet(&mut decoders, "overflow".into(), 0, bytes.clone()).unwrap();
+        assert!(!decoders.contains_key("overflow"));
+        decoders.remove("0");
+        insert_packet(&mut decoders, "replacement".into(), 0, bytes).unwrap();
+        assert!(decoders.contains_key("replacement"));
     }
     #[test]
     fn deafen_and_ptt_cannot_leak_microphone_transmission() {

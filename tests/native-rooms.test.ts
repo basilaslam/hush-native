@@ -109,8 +109,31 @@ test('native API rejects duplicate identities and invalid UDP endpoints', async 
 test('native admission limiter enforces the shared per-IP cap', async () => {
   const rooms = new NativeRooms(new NativeMemoryStore());
   const results = [];
-  for (let index = 0; index < 21; index++) results.push(await rooms.admit('198.51.100.1'));
-  assert.equal(results.filter(Boolean).length, 20);
-  assert.equal(results[20], false);
+  for (let index = 0; index < 65; index++) results.push(await rooms.admit('198.51.100.1'));
+  assert.equal(results.filter(Boolean).length, 64);
+  assert.equal(results[64], false);
   assert.equal(await rooms.admit('198.51.100.2'), true);
+});
+test('selected room capacity admits more than six and remains atomic at its limit', async () => {
+  const rooms = new NativeRooms(new NativeMemoryStore());
+  const owner = await rooms.handle({ op:'create', name:'Host', roomName:'Larger squad', maxMembers:10, ...identity(1) }) as Session;
+  const results = await Promise.allSettled(Array.from({length:14},(_,i)=>rooms.handle({op:'join',room:owner.room,invite:owner.invite,name:`Friend ${i}`,clientMaxMembers:32,...identity(i+2)})));
+  assert.equal(results.filter(result=>result.status==='fulfilled').length,9);
+  const snapshot = await rooms.handle({op:'sync',...owner}) as {maxMembers:number;peers:unknown[]};
+  assert.equal(snapshot.maxMembers,10);
+  assert.equal(snapshot.peers.length,10);
+});
+test('capacity is validated, fixed by the creator and defaults for older clients', async () => {
+  const rooms = new NativeRooms(new NativeMemoryStore());
+  for (const maxMembers of [0,1,33,-1,2.5,'12',null]) {
+    await assert.rejects(()=>rooms.handle({op:'create',name:'Host',roomName:'Room',...identity(1),maxMembers} as any),/Room size/);
+  }
+  const owner = await rooms.handle({op:'create',name:'Host',roomName:'Pair',maxMembers:2,...identity(1)}) as Session;
+  const friend = await rooms.handle({op:'join',room:owner.room,invite:owner.invite,name:'Friend',maxMembers:32,...identity(2)});
+  assert.equal((friend as {maxMembers:number}).maxMembers,2);
+  await assert.rejects(()=>join(rooms,owner,3),/full \(2 people\)/);
+  const old = await create(rooms);
+  assert.equal((await rooms.handle({op:'sync',...old}) as {maxMembers:number}).maxMembers,6);
+  const large = await rooms.handle({op:'create',name:'Host',roomName:'Big',maxMembers:32,...identity(1)}) as Session;
+  await assert.rejects(()=>join(rooms,large,2),/Update Hush/);
 });

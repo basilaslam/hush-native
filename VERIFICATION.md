@@ -2,6 +2,15 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
+## Configurable rooms and GitHub updates — v0.4.0
+
+- Local release Clippy, formatting and TypeScript/server builds passed. Fourteen native tests passed, including real Opus decoding across all 31 remote-stream slots, old-preference defaults, update version/channel selection, downgrade rejection, metadata bounds, asset URL/digest validation and checksum matching.
+- Sixteen Node/service/deployment tests passed locally; the Windows native executable/Cloudflare integration case is skipped on macOS and runs in Windows CI. Added tests cover concurrent admission above six, exact selected capacity, invalid capacity, preventing joiners from enlarging rooms and requiring current clients for larger rooms.
+- Windows CI additionally exercises the real PowerShell handoff with compiled process/installer stubs: wait for exit, paths containing spaces/apostrophes, restart and refusal of a modified installer. This is distinct from a full user-desktop upgrade test.
+- The new maximum is 32 total participants, default six. Per-IP admission allows 64 attempts/minute so a squad behind one NAT can join. Higher room sizes increase mesh work; physical 32-PC calls and gaming performance have not been measured.
+- Automatic checks contact the fixed public GitHub repository at startup/every six hours. Downloads and installation require the app controls. SHA-256 metadata and release-manifest matching validate integrity against the trusted GitHub account; independent code signing is not configured.
+- Existing v0.3.0 installations require one manual upgrade. Existing room coordinators must be redeployed for capacities above six. Client update installation does not redeploy the cloud service.
+
 ## Downloaded v0.3.0 source and release validation
 
 - Imported `Hush-v0.3.0-source-for-Mac.zip` from Downloads, SHA-256 `ee03e7560b33eebb8926aa53c0a52c5bf6f1b0036d622727057fc9782d3454f4`. Downloaded application source files were preserved exactly. Release preparation aligned the root package version, updated the workflow and documented complete portable packaging.

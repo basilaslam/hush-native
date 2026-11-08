@@ -7,7 +7,7 @@ User-required native Rust client; egui/eframe with a native Glow renderer, CPAL 
 ## Users and Purpose
 Small squads playing and streaming games on Windows want independent voice chat with low CPU, memory and frame-time overhead.
 ## Capabilities and Constraints
-Voice-first, six-person rooms, invitations, native mute/deafen/PTT, device selection, local mic test, gain/volume, peer chat and measured network health. No external STUN/TURN/Redis dependency. Direct IPv4 UDP requires reachable endpoints: LAN, successful UPnP mapping or manual port forwarding. CGNAT/restricted UDP can prevent calls; no relay fallback is available with the current direct-QUIC transport.
+Voice-first, creator-configured 2–32-person rooms, invitations, native mute/deafen/PTT, device selection, local mic test, gain/volume, peer chat and measured network health. No external STUN/TURN/Redis dependency. Direct IPv4 UDP requires reachable endpoints: LAN, successful UPnP mapping or manual port forwarding. CGNAT/restricted UDP can prevent calls; no relay fallback is available with the current direct-QUIC transport.
 ## Performance
 One encode per frame shared across peers, bounded audio/network queues, isolated coordination task, event-driven native rendering, gaming mode enabled by default. Zero FPS loss and superiority over Discord have not been established on the user's Windows PC.
 ## Identity and Design

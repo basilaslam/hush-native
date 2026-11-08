@@ -12,6 +12,7 @@ mod integration;
 mod model;
 mod transport;
 mod ui;
+mod updater;
 fn main() -> eframe::Result {
     let _ = rustls::crypto::ring::default_provider().install_default();
     if std::env::args().any(|arg| arg == "--self-test") {

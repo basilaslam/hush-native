@@ -26,6 +26,8 @@ pub struct Session {
     pub token: String,
     pub invite: String,
     pub room_name: String,
+    #[serde(default = "crate::config::default_room_capacity")]
+    pub max_members: usize,
 }
 impl Session {
     pub fn invitation(&self) -> String {
@@ -37,6 +39,8 @@ impl Session {
 pub struct Snapshot {
     pub version: u32,
     pub room_name: String,
+    #[serde(default = "crate::config::default_room_capacity")]
+    pub max_members: usize,
     pub peers: Vec<Peer>,
 }
 #[derive(Clone, Default, Debug)]

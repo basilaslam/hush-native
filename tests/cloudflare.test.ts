@@ -47,9 +47,16 @@ test('Cloudflare durable rooms preserve protocol, authentication, atomic capacit
 });
 test('Cloudflare admission limits are shared per IP but independent between callers', async () => {
  const data = {op:'create',name:'A',roomName:'Room',...identity(1)};
- for(let i=0;i<20;i++) assert.equal((await request(data,'198.51.100.8')).status,200);
+ for(let i=0;i<64;i++) assert.equal((await request(data,'198.51.100.8')).status,200);
  assert.equal((await request(data,'198.51.100.8')).status,429);
  assert.equal((await request(data,'198.51.100.9')).status,200);
+});
+test('Cloudflare durable storage preserves a selected capacity above six', async () => {
+ const {data:owner,status}=await request({op:'create',name:'Host',roomName:'Larger room',maxMembers:8,...identity(40)},'192.0.2.70');
+ assert.equal(status,200); assert.equal(owner.maxMembers,8);
+ for(let i=0;i<7;i++) assert.equal((await request({op:'join',room:owner.room,invite:owner.invite,name:`Friend ${i}`,clientMaxMembers:32,...identity(41+i)},'192.0.2.70')).status,200);
+ assert.equal((await request({op:'join',room:owner.room,invite:owner.invite,name:'Extra',clientMaxMembers:32,...identity(60)},'192.0.2.70')).status,409);
+ const snapshot=await request({op:'sync',...owner},'192.0.2.70'); assert.equal(snapshot.data.maxMembers,8); assert.equal(snapshot.data.peers.length,8);
 });
 
 test('native executable exchanges encrypted Opus audio and chat through Cloudflare coordination', async (context) => {
