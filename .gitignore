@@ -19,8 +19,13 @@ artifacts/
 graft/
 .impeccable/
 
-# Generated Cloudflare deploy payload and local Worker state
-deployment/node.exe
-deployment/worker.mjs
-deployment/node_modules/
+# Legacy generated payload and local Worker state
+deployment/
 cloudflare/.wrangler/
+
+# Standalone server setup tooling (never packaged with the desktop client)
+setup/node_modules/
+setup/worker.mjs
+setup/.dependencies.json
+setup/.wrangler/
+setup-dist/

@@ -11,7 +11,7 @@ before(async () => {
  const listener = createServer(); await new Promise<void>(resolve => listener.listen(0, '127.0.0.1', resolve));
  const port = (listener.address() as {port:number}).port; await new Promise<void>(resolve=>listener.close(()=>resolve()));
  origin = 'http://127.0.0.1:' + port;
- child = spawn(process.execPath, ['deployment/node_modules/wrangler/bin/wrangler.js','dev','--local','--config','cloudflare/wrangler.json','--port',String(port),'--ip','127.0.0.1'], {cwd:process.cwd(),env:{...process.env,WRANGLER_SEND_METRICS:'false',NO_COLOR:'1'},windowsHide:true,stdio:['ignore','pipe','pipe']});
+ child = spawn(process.execPath, ['setup/node_modules/wrangler/bin/wrangler.js','dev','--local','--config','cloudflare/wrangler.json','--port',String(port),'--ip','127.0.0.1'], {cwd:process.cwd(),env:{...process.env,WRANGLER_SEND_METRICS:'false',NO_COLOR:'1'},windowsHide:true,stdio:['ignore','pipe','pipe']});
  child.stdout?.on('data', data=>{output=(output+data).slice(-12000)}); child.stderr?.on('data',data=>{output=(output+data).slice(-12000)});
  for(let attempt=0;attempt<60;attempt++) { try { const r=await fetch(origin+'/health'); if(r.ok)return; }catch{} if(child.exitCode!==null)throw Error(output); await new Promise(r=>setTimeout(r,500)); }
  throw Error('Cloudflare local runtime did not start: '+output);

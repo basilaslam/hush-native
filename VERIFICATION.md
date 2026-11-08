@@ -2,6 +2,13 @@
 
 The shipping application is native Rust. The browser/Tauri prototype and its React dependencies have been removed.
 
+## Small client and standalone terminal setup — v0.5.0
+
+- Removed the native deployment module, in-app Cloudflare setup controls and bundled Node/Wrangler payload. Voice, room-size selection and the GitHub updater remain native. New installers remove the old app-owned deployment folder; host state and desktop preferences live outside it.
+- Local Clippy, formatting, service build and 13 native tests passed. Eighteen service/setup tests ran locally: 17 passed and the Windows-only native/Cloudflare integration case was skipped. Setup tests cover secure environment isolation, URL/protocol/identity verification, selected-account deployment, saved-worker reuse and a dry run that invokes no sign-in or cloud writes.
+- The macOS launcher downloaded and checksum-verified a private Node 24 runtime. A fresh host-tool installation with that runtime passed the Worker dry run. No Cloudflare sign-in or actual cloud deployment was performed during these checks.
+- CI now validates the shipped PowerShell/Bash launchers against the separate server bundle, enforces a 12 MB desktop-download budget, and tests silent installation over a simulated old payload while checking preserved preferences/server state. Actual end-user browser OAuth and network calls remain subject to the existing physical-device limits below.
+
 ## Configurable rooms and GitHub updates — v0.4.1
 
 - [Windows CI](https://github.com/basilaslam/hush-native/actions/runs/42455900480) passed its build job at `698ae63514f3220b7d05d9900bb2d834f4314f34`: 15 Rust tests, 17 service/deployment tests, optimized compilation, native audio/chat against local Vercel-compatible and Cloudflare coordination, static-runtime inspection, bundled runtime startup and NSIS/portable packaging. The earlier unpublished v0.4.0 tag caught an inherited PowerShell module-path issue; the handoff now uses built-in .NET SHA-256 and a clean module path.

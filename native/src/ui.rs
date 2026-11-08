@@ -363,7 +363,6 @@ enum Modal {
 }
 pub struct HushApp {
     engine: Controller,
-    deployment: crate::deploy::Deployment,
     updater: crate::updater::Updater,
     last_update_check: std::time::Instant,
     config: Config,
@@ -477,7 +476,6 @@ impl HushApp {
         }
         Ok(Self {
             engine,
-            deployment: crate::deploy::Deployment::default(),
             updater,
             last_update_check: std::time::Instant::now(),
             draft: config.clone(),
@@ -505,11 +503,6 @@ impl HushApp {
         self.engine.state.lock().unwrap().notice = "Settings saved on this device.".into();
     }
     fn begin(&mut self, invitation: Option<String>) {
-        if self.deployment.snapshot().running {
-            self.engine.state.lock().unwrap().error =
-                "Finish or cancel server setup before joining a room.".into();
-            return;
-        }
         if let Err(error) = self.config.validate() {
             self.engine.state.lock().unwrap().error = error.to_string();
             if self.config.server.trim().is_empty() {
@@ -552,76 +545,7 @@ impl HushApp {
         title(ui, "Sound like yourself.", 32.);
         small(ui, "A few thoughtful settings. A better session.");
         ui.add_space(24.);
-        let deployment = self.deployment.snapshot();
-        let locked = state.session.is_some() || state.busy || state.testing || deployment.running;
-        form_card(ui, |ui| {
-            section_heading(
-                ui,
-                "Host your squad",
-                "Your own room server, set up in a few clicks.",
-                Icon::Signal,
-            );
-            small(ui, "Sign in to Cloudflare in your browser. Hush deploys the server and fills in its address for you.");
-            ui.add_space(12.);
-            if deployment.running {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(RichText::new(&deployment.message).color(TEXT));
-                });
-                if !deployment.accounts.is_empty() {
-                    ui.add_space(10.);
-                    label(ui, "Cloudflare account");
-                    let mut selected = deployment.selected;
-                    egui::ComboBox::from_id_salt("cloudflare_account")
-                        .selected_text(
-                            deployment
-                                .accounts
-                                .get(selected)
-                                .map_or("Choose an account", |account| account.name.as_str()),
-                        )
-                        .width(ui.available_width())
-                        .truncate()
-                        .show_ui(ui, |ui| {
-                            for (index, account) in deployment.accounts.iter().enumerate() {
-                                ui.selectable_value(&mut selected, index, &account.name);
-                            }
-                        });
-                    self.deployment.select(selected);
-                    if action(ui, "Use this account", Icon::Arrow, true).clicked() {
-                        self.deployment.use_account();
-                    }
-                }
-                ui.add_space(10.);
-                if action(ui, "Cancel deployment", Icon::Close, false).clicked() {
-                    self.deployment.cancel();
-                }
-            } else {
-                ui.add_enabled_ui(
-                    state.session.is_none()
-                        && !state.busy
-                        && !state.testing
-                        && !self.deployment.snapshot().running,
-                    |ui| {
-                        if action(ui, "Deploy server", Icon::Plus, true).clicked() {
-                            self.deployment.start(ui.ctx().clone());
-                        }
-                    },
-                );
-                if !deployment.message.is_empty() {
-                    ui.add_space(10.);
-                    ui.label(
-                        RichText::new(&deployment.message).color(if deployment.error {
-                            RED
-                        } else {
-                            GREEN
-                        }),
-                    );
-                }
-            }
-            ui.add_space(10.);
-            small(ui, "Uses your Cloudflare account and its usage limits. Voice and chat stay peer to peer.");
-        });
-        ui.add_space(16.);
+        let locked = state.session.is_some() || state.busy || state.testing;
         form_card(ui, |ui| {
             section_heading(
                 ui,
@@ -638,7 +562,11 @@ impl HushApp {
                 ));
                 small(
                     ui,
-                    "Deploy above, or use an existing Cloudflare or Vercel server address.",
+                    "The host runs the terminal setup script, then shares the server address.",
+                );
+                ui.hyperlink_to(
+                    "Terminal server setup instructions",
+                    "https://github.com/basilaslam/hush-native#terminal-server-setup",
                 );
                 ui.add_space(12.);
                 label(ui, "Your display name");
@@ -729,30 +657,27 @@ impl HushApp {
                     .add(egui::Slider::new(&mut self.draft.output_volume, 0.0..=1.5).suffix("×"));
             });
             ui.add_space(14.);
-            ui.add_enabled_ui(
-                !state.busy && state.session.is_none() && !deployment.running,
-                |ui| {
-                    if action(
-                        ui,
-                        if state.testing {
-                            "Stop microphone test"
-                        } else {
-                            "Test microphone"
-                        },
-                        Icon::Mic,
-                        false,
-                    )
-                    .clicked()
-                    {
-                        if state.testing {
-                            self.engine.send(Command::StopTest);
-                        } else {
-                            self.engine.configure(&self.draft);
-                            self.engine.send(Command::Test(self.draft.clone()));
-                        }
+            ui.add_enabled_ui(!state.busy && state.session.is_none(), |ui| {
+                if action(
+                    ui,
+                    if state.testing {
+                        "Stop microphone test"
+                    } else {
+                        "Test microphone"
+                    },
+                    Icon::Mic,
+                    false,
+                )
+                .clicked()
+                {
+                    if state.testing {
+                        self.engine.send(Command::StopTest);
+                    } else {
+                        self.engine.configure(&self.draft);
+                        self.engine.send(Command::Test(self.draft.clone()));
                     }
-                },
-            );
+                }
+            });
             if state.testing {
                 ui.add_space(12.);
                 let level = f32::from_bits(self.engine.controls.level.load(Ordering::Relaxed));
@@ -809,7 +734,10 @@ impl HushApp {
         });
         if locked {
             ui.add_space(12.);
-            small(ui, "Finish server setup, leave the room and stop the microphone test before changing connection settings.");
+            small(
+                ui,
+                "Leave the room and stop the microphone test before changing connection settings.",
+            );
         }
         ui.add_space(16.);
         form_card(ui, |ui| {
@@ -873,7 +801,7 @@ impl HushApp {
                 "All GitHub releases",
                 "https://github.com/basilaslam/hush-native/releases",
             );
-            small(ui, "Save settings to keep your update preferences. Leave calls and stop microphone/server setup before downloading or installing. Installation updates this Windows folder and restarts Hush.");
+            small(ui, "Save settings to keep your update preferences. Leave calls and stop microphone testing before downloading or installing. Installation updates this Windows folder and restarts Hush.");
         });
         ui.add_space(20.);
         if action(ui, "Save settings", Icon::Settings, true).clicked() {
@@ -1227,7 +1155,7 @@ impl HushApp {
             ui.add_space(12.);
             small(
                 ui,
-                "First time here? Deploy your server in Voice & settings.",
+                "First time here? Run the terminal server setup, then paste its address in Settings.",
             );
         }
     }
@@ -1473,7 +1401,7 @@ impl HushApp {
         ui.set_max_width(ui.available_width().min(820.));
         title(ui, "A little help, before you play.", 30.);
         ui.add_space(25.);
-        for(title_text,body)in[("Bring your people","Give yourself a name, create a room and copy its hush1 invitation. Friends paste it into Join with an invite in their native app. Web demo invitations are a different protocol."),("A small, native audio path","The microphone feeds a bounded sample ring. One worker encodes 20 ms mono Opus frames once, then shares those bytes with the squad. Incoming frames use a bounded jitter buffer and mix directly to the sound device."),("Your own home base","Use Deploy server in Voice & settings to sign in to Cloudflare and automatically create your room server. Its address is saved for you. Existing Vercel servers are also supported."),("Router access matters","Allow Hush on private Windows networks. Automatic UPnP opens a temporary UDP mapping only for the room. If mapping is unavailable, forward the chosen UDP port and enter the public IPv4:port. Carrier-grade NAT and some restricted networks will still block direct calls."),("Keep the game first","Gaming mode is on by default. It stops live microphone-meter repaints. F8 is registered globally only during push-to-talk calls. A game running with elevated privileges may block a shortcut; test your setup."),("Measure before promising","This is a native implementation designed for low overhead. Compare game frame times, CPU, memory and network loss on your gaming PC before claiming an improvement. No zero-FPS-loss promise is made.")]{title(ui,title_text,16.);ui.add_space(7.);ui.label(RichText::new(body).size(13.).color(MUTED));ui.add_space(23.);}
+        for(title_text,body)in[("Bring your people","Give yourself a name, create a room and copy its hush1 invitation. Friends paste it into Join with an invite in their native app. Web demo invitations are a different protocol."),("A small, native audio path","The microphone feeds a bounded sample ring. One worker encodes 20 ms mono Opus frames once, then shares those bytes with the squad. Incoming frames use a bounded jitter buffer and mix directly to the sound device."),("Your own home base","The host runs the server setup script from GitHub, signs in to Cloudflare, and shares the resulting HTTPS address. Paste it in Voice & settings. Friends need no deployment tools. Existing Vercel servers are also supported."),("Router access matters","Allow Hush on private Windows networks. Automatic UPnP opens a temporary UDP mapping only for the room. If mapping is unavailable, forward the chosen UDP port and enter the public IPv4:port. Carrier-grade NAT and some restricted networks will still block direct calls."),("Keep the game first","Gaming mode is on by default. It stops live microphone-meter repaints. F8 is registered globally only during push-to-talk calls. A game running with elevated privileges may block a shortcut; test your setup."),("Measure before promising","This is a native implementation designed for low overhead. Compare game frame times, CPU, memory and network loss on your gaming PC before claiming an improvement. No zero-FPS-loss promise is made.")]{title(ui,title_text,16.);ui.add_space(7.);ui.label(RichText::new(body).size(13.).color(MUTED));ui.add_space(23.);}
     }
     fn chat_panel(&mut self, ctx: &egui::Context, state: &ViewState) {
         egui::SidePanel::right("chat")
@@ -1558,16 +1486,6 @@ impl eframe::App for HushApp {
                 self.updater.check(ctx.clone(), self.config.preview_updates);
             }
             ctx.request_repaint_after(interval.saturating_sub(self.last_update_check.elapsed()));
-        }
-        if let Some(server) = self.deployment.take_ready() {
-            self.config.server = server.clone();
-            self.draft.server = server;
-            if let Err(error) = self.config.save() {
-                self.engine.state.lock().unwrap().error = format!("Your server is deployed, but its address could not be saved: {error}. Save it in Settings.");
-            } else {
-                self.engine.state.lock().unwrap().notice =
-                    "Your Cloudflare server is ready. Choose your name, then create a room.".into();
-            }
         }
         let state = self.engine.state.lock().unwrap().clone();
         self.sync_hotkey(state.session.is_some());

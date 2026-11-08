@@ -1,5 +1,2 @@
-import { build } from '../deployment/node_modules/esbuild/lib/main.js';
-import { mkdir, copyFile } from 'node:fs/promises';
-await mkdir('deployment', {recursive:true});
-await build({entryPoints:['cloudflare/worker.ts'],bundle:true,platform:'node',target:'es2022',format:'esm',outfile:'deployment/worker.mjs',external:['cloudflare:workers']});
-await copyFile(process.execPath, 'deployment/node.exe');
+import { build } from '../setup/node_modules/esbuild/lib/main.js';
+await build({entryPoints:['cloudflare/worker.ts'],bundle:true,platform:'node',target:'es2022',format:'esm',outfile:'setup/worker.mjs',external:['cloudflare:workers']});

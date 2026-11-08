@@ -29,3 +29,7 @@ Hush explicitly selects the dark egui theme so Windows light-mode defaults canno
 Settings are grouped into rounded cards for identity/server, audio, talk controls and direct connection. Single-line fields use a 42px minimum height, 12px horizontal padding, dark green fill, rounded borders and a leaf-colored focus state. Device dropdowns fill their column and truncate long device names. The lobby, invitation dialog and chat composer reuse the same field builder.
 
 Labeled icon buttons reserve separate icon and text regions, with measured text width, accessible labels, visible keyboard focus and clipped overflow. Text is never positioned using leading spaces.
+
+## Terminal server setup
+
+Settings contains the coordination-address field and a link to terminal setup instructions. Cloudflare sign-in, account selection and deployment run only in the host's terminal. The client contains no deployment controls, Node runtime or Wrangler payload. Room-size selection and GitHub app updates remain native controls.

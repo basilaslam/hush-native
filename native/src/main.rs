@@ -6,7 +6,6 @@ mod audio;
 mod brand;
 mod config;
 mod coordination;
-mod deploy;
 mod engine;
 mod integration;
 mod model;

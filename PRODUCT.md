@@ -3,7 +3,7 @@
 ## Platform
 Native Rust desktop, targeting Windows. macOS is used for local development and compilation.
 ## Stack
-User-required native Rust client; egui/eframe with a native Glow renderer, CPAL audio devices, Opus compression and Quinn QUIC transport. Room coordination can run on Cloudflare Workers with SQLite-backed Durable Objects, or on the existing Vercel Functions/private Blob backend. The desktop app can sign in to Cloudflare with the bundled official deployment tools and automatically deploy, verify and configure a server. The web/Tauri prototype has been replaced.
+User-required native Rust client; egui/eframe with a native Glow renderer, CPAL audio devices, Opus compression and Quinn QUIC transport. Room coordination can run on Cloudflare Workers with SQLite-backed Durable Objects, or on the existing Vercel Functions/private Blob backend. A separate terminal script prepares host-only tools, signs in through official Wrangler, deploys and verifies the server, then prints its address. The native client bundles no deployment runtime. The web/Tauri prototype has been replaced.
 ## Users and Purpose
 Small squads playing and streaming games on Windows want independent voice chat with low CPU, memory and frame-time overhead.
 ## Capabilities and Constraints

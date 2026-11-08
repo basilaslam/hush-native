@@ -4,9 +4,9 @@
 
 [Download Windows preview](https://github.com/basilaslam/hush-native/releases) · [Source repository](https://github.com/basilaslam/hush-native)
 
-A standalone desktop voice app for a small gaming squad. The shipping client is **Rust + egui/eframe + CPAL + Opus + Quinn**. The voice client has no browser, WebView, Tauri, Electron or Discord dependency. The Windows installer bundles Node and the official Wrangler CLI for optional server deployment.
+A standalone desktop voice app for a small gaming squad. The shipping client is **Rust + egui/eframe + CPAL + Opus + Quinn**. The voice client has no browser, WebView, Tauri, Electron or Discord dependency. The desktop packages contain no Node runtime, Wrangler or deployment tools. Server setup is a separate host-only terminal script.
 
-**Windows is the target platform.** The source also compiles on macOS for development. The native executable talks to your configured coordination server and room participants. Deploy a Cloudflare Worker with SQLite Durable Objects directly from the app, or use Vercel Functions with a **private Vercel Blob store**. No Redis, external STUN service, or TURN relay is used.
+**Windows is the target platform.** The source also compiles on macOS for development. The native executable talks to your configured coordination server and room participants. Deploy a Cloudflare Worker with SQLite Durable Objects using the separate terminal script, or use Vercel Functions with a **private Vercel Blob store**. No Redis, external STUN service, or TURN relay is used.
 
 ## Run the native client
 
@@ -25,15 +25,33 @@ npm run native:build
 
 `native:dev` uses an unoptimized development build. Use the release executable for actual gaming. The program is written to `target/release/hush-native.exe` on Windows, or `target/release/hush-native` on macOS/Linux.
 
-Open **Voice & settings** in the app, click **Deploy server**, complete Cloudflare sign-in and consent in your browser, then choose your name and devices. Hush verifies the new server and saves its address automatically. You can also enter an existing Cloudflare or Vercel HTTPS origin and save. Create a room or join with a `hush1.…` invitation. Each participant needs the native app and the same coordination deployment. Browser-demo invitations from the earlier prototype are incompatible.
+Open **Voice & settings**, paste the HTTPS server address provided by your host, choose your name/devices and save. Create a room or join using a `hush1.…` invitation. Friends do not need Node, deployment tools, or a Cloudflare account. Everyone uses the same room-server address.
 
-## Deploy a server from Hush (Windows v0.4.1)
+## Terminal server setup
 
-Only the host needs a Cloudflare account. Click **Voice & settings → Deploy server** and complete the official Wrangler browser sign-in. Choose an account if you have several. Hush deploys a Worker with SQLite Durable Objects, checks its deployment identity and native protocol, then saves its HTTPS address. Share that server address and the room invitation with your friends; invitations currently do not include the server address.
+Only the host runs setup. GitHub hosts the scripts and app updates; Cloudflare runs your room coordinator. There is no need to clone the repository, install Git/Rust, or bundle a runtime into the voice app.
 
-The helper uses a dedicated Wrangler OAuth profile named `hush-native`. Credentials are encrypted with an encryption key held in Windows Credential Manager; Hush refuses plaintext fallback. No API token needs to be pasted into the app. Deployment runs separately from audio and rendering. Retry updates the same generated Worker for that account. Cancel stops local setup; resources already created remain in your account.
+**Windows PowerShell:**
 
-Cloudflare account usage limits and pricing apply. The app does not enable a paid plan automatically. New accounts may need Workers onboarding and a workers.dev subdomain in the dashboard. Voice and chat remain direct peer to peer; deploying coordination does not add a media relay.
+```powershell
+Invoke-WebRequest https://github.com/basilaslam/hush-native/releases/download/v0.5.0/setup-server.ps1 -OutFile "$env:TEMP\hush-setup.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\hush-setup.ps1"
+```
+
+**macOS/Linux:**
+
+```sh
+curl -fL https://github.com/basilaslam/hush-native/releases/download/v0.5.0/setup-server.sh -o setup-server.sh
+bash setup-server.sh
+```
+
+Setup reuses Node 22+ with npm if present, or installs a private Node 24 runtime for the host after checksum verification. It downloads the small server setup bundle, verifies its checksum, installs pinned host tools locally, opens official Cloudflare browser sign-in, chooses an account, deploys the Worker/SQLite Durable Objects, verifies its deployment identity and prints the HTTPS address. Paste that address into the native app's **Coordination server** field and Save settings. Share it with your friends, plus the room invitation.
+
+Rerunning setup updates the same saved Worker. Windows reuses the old in-app deployer's server mapping and encrypted `hush-native` profile. The script records the verified URL in `server-address.txt`. Credentials stay in Wrangler's secure local storage, outside the app and GitHub. A new Cloudflare account may need Workers onboarding / a workers.dev subdomain first. The script does not enable a paid plan automatically; account quotas apply.
+
+For a local check without sign-in or cloud writes, add `-DryRun` on Windows or `--dry-run` on Unix. This still prepares local host dependencies. See [the setup guide](setup/README.md) for locations, existing-worker selection and Linux keyring prerequisites.
+
+Existing deployed servers continue working when the client is upgraded. The v0.5 installer removes the old app-owned `deployment` payload while preserving desktop preferences and the separate Cloudflare profile/state. The terminal tools remain outside the app; friends never download them.
 
 ## Deploy the optional Vercel service
 
@@ -82,11 +100,11 @@ This release is voice-first. There is no screen sharing, overlay, recording, aco
 
 Choose **Room size** in the lobby before creating a room. The server enforces 2–32 people, including the creator; six remains the default. Capacity is fixed for that room. Create a new room to change it. Unlimited mesh rooms are not supported: every participant sends voice to every other participant, so larger rooms increase CPU and upload traffic. The upper setting is not a performance guarantee.
 
-To use rooms above six, **all participants need v0.4.1 or newer**, and the host must run **Deploy server** again (or redeploy Vercel) with the updated source. Older rooms and clients retain their six-person defaults. Updating the app does not automatically update an already deployed room server.
+To use rooms above six, **all participants need v0.4.1 or newer**, and the host must rerun the **terminal server setup** (or redeploy Vercel) with the updated source. Older rooms and clients retain their six-person defaults. Updating the app does not automatically update an already deployed room server.
 
 In **Voice & settings → App updates**, Hush checks this public GitHub repository at startup and every six hours. Disable automatic checks or exclude preview releases with the checkboxes and Save settings. Preview updates are included by default because this app currently ships preview releases. Checks do not need a GitHub account/token; API/network failures are recoverable and do not close calls.
 
-On Windows, choose **Download update**, then **Install update & restart**. Download/install controls are disabled during calls, microphone testing and server setup. Updates are not downloaded or installed automatically. Installation waits for Hush to exit, verifies the installer again, runs it silently in the same writable app folder, and restarts Hush. Preferences remain in the normal user configuration folder. Portable users also receive the installer-based update in their existing folder. Read-only folders require a manual installer download. Failed installation details are surfaced at the next launch.
+On Windows, choose **Download update**, then **Install update & restart**. Download/install controls are disabled during calls and microphone testing. Updates are not downloaded or installed automatically. Installation waits for Hush to exit, verifies the installer again, runs it silently in the same writable app folder, and restarts Hush. Preferences remain in the normal user configuration folder. Portable users also receive the installer-based update in their existing folder. Read-only folders require a manual installer download. Failed installation details are surfaced at the next launch.
 
 Downloads use bounded HTTPS requests to this repository and GitHub asset hosts. The app checks both GitHub's asset SHA-256 digest and `SHA256SUMS.txt`, rejects mismatches/oversized files, and refuses downgrades. These hashes check integrity; they are not independent publisher signatures. The trusted GitHub repository/account remains the update trust boundary. The Windows preview is still unsigned. Automatic installation is Windows-only.
 
@@ -102,17 +120,17 @@ Anyone with an invitation can join, and direct P2P exposes participants’ netwo
 
 ## Windows installer
 
-On Windows, prepare the deployment payload with `npm ci`, `npm ci --prefix deployment`, and `npm run cloudflare:build`, then build with `cargo build --release --locked -p hush-native`. Opus links statically by default on Windows, and `.cargo/config.toml` selects the static Microsoft C runtime for the x64 Windows build. For the optional per-user installer install NSIS, then run:
+On Windows, build the standalone client with `cargo build --release --locked -p hush-native`. Opus links statically by default on Windows, and `.cargo/config.toml` selects the static Microsoft C runtime for the x64 Windows build. For the optional per-user installer install NSIS, then run:
 
 ```powershell
 makensis packaging/windows/installer.nsi
 ```
 
-The executable and `packaging/windows/Hush-0.4.1-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
+The executable and `packaging/windows/Hush-0.5.0-Windows-Setup.exe` require no browser runtime. The installer runs without administrator rights and preserves preferences when uninstalling. Distribution signing is not configured.
 
-Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default coordination origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and packages a portable ZIP with the complete deployment helper, a source ZIP and checksums. Enable **publish_release** to publish a GitHub preview release only after all checks pass; otherwise it uploads the packages as a workflow artifact.
+Alternatively, push this repository to GitHub and run **Actions → Build native Windows app**. Supply an optional default coordination origin. The workflow runs checks/tests, builds the native executable and NSIS installer, and packages the small native installer/portable app, a separate server setup ZIP and launchers, a source ZIP and checksums. Enable **publish_release** to publish a GitHub preview release only after all checks pass; otherwise it uploads the packages as a workflow artifact.
 
-Windows x64 builds and installer packaging have passed [GitHub Actions for v0.4.1](https://github.com/basilaslam/hush-native/actions/runs/42455900480), including the Windows update-handoff test, Rust/service checks, native synthetic audio/chat through local Cloudflare coordination, the bundled deployment runtime, and verification that no separate Microsoft C runtime is imported by the Rust client. Download the Windows preview from [Releases](https://github.com/basilaslam/hush-native/releases). Physical audio, global F8 inside games, cross-router behavior and gaming performance require testing on your gaming PCs.
+Windows x64 builds and installer packaging have passed [GitHub Actions for v0.4.1](https://github.com/basilaslam/hush-native/actions/runs/42455900480), including the Windows update-handoff test, Rust/service checks, native synthetic audio/chat through local Cloudflare coordination, the host setup dry run, and verification that no separate Microsoft C runtime is imported by the Rust client. Download the Windows preview from [Releases](https://github.com/basilaslam/hush-native/releases). Physical audio, global F8 inside games, cross-router behavior and gaming performance require testing on your gaming PCs.
 
 ## Develop and verify
 
@@ -126,7 +144,7 @@ npm run dev
 Enter `http://127.0.0.1:5173` in the native app. Development uses in-memory metadata unless a private Blob token is configured. Two clients on one computer must listen on different UDP ports. No browser client is served. Production refuses to use in-memory metadata.
 
 ```sh
-npm ci --prefix deployment
+npm ci --prefix setup
 npm run cloudflare:build
 cargo build --release --locked -p hush-native
 npm test
@@ -155,7 +173,7 @@ See `VERIFICATION.md` for actual results and limits. Low overhead is an implemen
 - `native/src/transport.rs`: mutual TLS identities, QUIC transport, router mapping and loss accounting.
 - `native/src/engine.rs`: session lifecycle, coordination isolation and peer management.
 - `native/src/coordination.rs`: HTTPS room API client.
-- `native/src/deploy.rs`, `deployment/helper.mjs`: native setup flow and bundled Wrangler deployment.
+- `scripts/setup-server.ps1`, `scripts/setup-server.sh`, `setup/setup.mjs`: standalone host setup and Wrangler deployment; not shipped inside the desktop app.
 - `cloudflare/worker.ts`: Cloudflare Worker and SQLite Durable Objects coordination service.
 - `server/native-*.ts`, `api/native-*.ts`: Vercel-only room service, private storage and cleanup.
 - `packaging/windows/`, `.github/workflows/windows.yml`: native Windows packaging.

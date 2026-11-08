@@ -78,7 +78,7 @@ impl Coordinator {
         }
         if invitation.is_none() && session.max_members != config.max_members {
             let _ = self.leave(&session).await;
-            bail!("Your server uses the old room limit. Run Deploy server again or redeploy Vercel, then create the room");
+            bail!("Your server uses the old room limit. Run the terminal setup script again or redeploy Vercel, then create the room");
         }
         Ok(session)
     }

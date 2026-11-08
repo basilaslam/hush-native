@@ -1,12 +1,13 @@
-Hush v0.4.1 adds configurable room capacity and GitHub updates to the native Windows app.
+Hush v0.5.0 removes the server deployment payload from the native Windows app.
 
-- Choose **2–32 people** in the lobby before creating a room. Six remains the default. Capacity is enforced by the room server; larger rooms use more upload and CPU.
-- **Voice & settings → App updates** checks GitHub at startup and every six hours. Preview updates are included by default; both preferences can be changed and saved.
-- Choose **Download update**, then **Install update & restart**. The app verifies GitHub's SHA-256 digest and release checksums, waits for Hush to close, updates the same folder and restarts. These controls are disabled during calls, microphone testing and server setup.
-- Matching version tags now trigger tested GitHub release builds automatically.
+- Desktop downloads contain the native Rust client, documentation and font license. Node, Wrangler and the in-app Deploy server flow are removed.
+- The separate **setup-server.ps1** (Windows) and **setup-server.sh** (macOS/Linux) launchers prepare a private host runtime when needed, verify the server bundle, sign in through official Cloudflare Wrangler, deploy and verify the room server, then print its address.
+- Only the host runs setup. Friends need just the native client and shared server address. GitHub distributes the files and updates; Cloudflare hosts room coordination.
+- Updating from v0.3/v0.4 removes the old bundled deployment folder and preserves app preferences. Existing cloud servers and separately stored sign-in profiles are retained.
+- Manual 2–32-person room sizes and verified GitHub app updates remain available.
 
-**Upgrade once manually from v0.3.0** to get the updater. To use rooms above six, update every participant and run **Deploy server** again on the host (or redeploy Vercel). Existing room servers do not update merely by installing the app. Room size is fixed at creation; create a new room to change it. Unlimited rooms are not supported by this direct mesh architecture.
+**App:** download Hush-0.5.0-Windows-Setup.exe or Hush-0.5.0-Windows-Portable.zip. Existing v0.4.1 clients can install this version from App updates.
 
-Download **Hush-0.4.1-Windows-Setup.exe**, or extract the complete **Hush-0.4.1-Windows-Portable.zip** and run `Hush/hush-native.exe`. Keep its `deployment` folder beside the executable. Source and SHA256SUMS.txt are included.
+**Host setup:** download setup-server.ps1 or setup-server.sh from this release and run it in a terminal. It fetches Hush-Server-Setup.zip and checks SHA256SUMS.txt before installing host dependencies. Node 22+ with npm is reused when available, otherwise a checksum-verified private Node 24 runtime is installed. Browser approval is needed for Cloudflare sign-in. Linux additionally needs an unlocked libsecret keyring/secret-tool.
 
-This is an unsigned preview with direct encrypted QUIC voice. CGNAT/restricted networks can still block calls; there is no ICE/TURN fallback. Physical multi-PC voice and gaming FPS are not benchmarked by CI.
+Source and checksums are included. This remains an unsigned Windows preview. Voice is direct encrypted QUIC, with no ICE/TURN fallback; physical multi-PC calls and game FPS remain outside automated CI checks.

@@ -73,7 +73,7 @@ impl Config {
             bail!("Choose a room size from 2 to {MAX_ROOM_MEMBERS}");
         }
         let url = url::Url::parse(self.server.trim())
-            .context("Deploy a server or set its HTTPS address in Settings first")?;
+            .context("Run terminal server setup or set its HTTPS address in Settings first")?;
         let local = url
             .host_str()
             .is_some_and(|host| matches!(host, "localhost" | "127.0.0.1" | "[::1]"));
