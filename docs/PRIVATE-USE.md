@@ -1,4 +1,4 @@
-# Current implementation (v0.4.0)
+# Current implementation (v0.4.1)
 
 Cloudflare coordination and the Windows in-app Deploy server flow are now implemented. The host signs in through the official Wrangler browser flow; Hush deploys a Worker with SQLite Durable Objects, verifies it and saves the address. Each friend still needs the same server address and room invitation.
 
